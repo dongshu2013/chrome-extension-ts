@@ -1,78 +1,109 @@
-# BUZZ Reply Helper Chrome Extension
+# Twitter 用户分析助手
 
-A Chrome extension to help with replying to BUZZ posts on Edge Posting.
+> 基于ChromeExtension的Twitter用户分析工具，可以分析用户特征，生成个性化回复。
 
-## Features
+## 主要功能
 
-- Extract buzz cards from Edge Posting using AI
-- Auto-reply to tweets with a single click
-- Automatically submit reply URLs
-- Automatically close Twitter tabs after replying
+- **用户搜索**: 支持通过用户名搜索Twitter用户，实时获取数据
+- **用户分析**: 分析用户的个性特点、兴趣爱好和沟通风格
+- **个性化回复**: 根据用户特征生成个性化回复建议
+- **设置系统**: 完整的设置页面，包括AI模型配置、Twitter API设置等
 
-## Development
+## 技术特点
 
-This project is built with TypeScript, React, and webpack.
+- 支持三种数据获取方式:
+  1. **网页爬虫**: 直接抓取Twitter用户数据，无需API密钥
+  2. **Twitter API**: 当配置API Token后，可通过官方API获取数据
+  3. **备用模拟数据**: 当以上方法都不可用时，生成模拟用户数据
 
-### Prerequisites
+- 支持AI分析:
+  - 使用OpenAI API分析用户特征
+  - 提供个性化交流建议
+  - 可选添加查看详情提醒
 
-- Node.js (v14 or later)
-- pnpm (v6 or later)
+## 安装指南
 
-### Installation
+### 开发版本安装
 
-1. Clone the repository
-2. Install dependencies:
+1. 克隆仓库
+```bash
+git clone [仓库URL]
+cd chrome-extension-ts
+```
 
+2. 安装依赖
 ```bash
 pnpm install
 ```
 
-### Development
-
-To build the extension in development mode with watch mode:
-
+3. 开发模式
 ```bash
-pnpm run dev
+pnpm dev
 ```
 
-### Production Build
-
-To build the extension for production:
-
+4. 构建生产版本
 ```bash
-pnpm run prod
+pnpm build
 ```
 
-### Creating a ZIP File
+### 浏览器安装
 
-To create a ZIP file for distribution:
+1. 打开Chrome浏览器，进入扩展管理页面: `chrome://extensions/`
+2. 开启右上角的"开发者模式"
+3. 点击"加载已解压的扩展程序"
+4. 选择build目录下的`chrome-mv3-prod`文件夹
+5. 确认安装成功，可在浏览器工具栏看到扩展图标
 
-```bash
-pnpm run zip
+## 使用说明
+
+1. **搜索用户**:
+   - 点击扩展图标，在弹出的搜索框中输入Twitter用户名
+   - 查看搜索结果并选择要分析的用户
+
+2. **查看分析**:
+   - 点击用户卡片查看详细分析
+   - 分析结果包括性格特点、兴趣爱好和沟通风格
+
+3. **生成回复**:
+   - 在用户分析页面点击"生成回复"
+   - 可获得根据用户特征生成的个性化回复建议
+
+4. **调整设置**:
+   - 点击设置图标访问设置页面
+   - 配置Twitter API、OpenAI API和其他功能设置
+
+## 项目结构
+
+```
+src/
+├── background.ts            # 后台脚本，处理搜索和分析
+├── options.tsx              # 设置页面组件
+├── popup.tsx                # 弹出窗口组件
+├── services/
+│   ├── ai-service.ts        # AI分析服务
+│   ├── twitter-api.ts       # Twitter API服务
+│   └── twitter-scraper.ts   # Twitter爬虫服务
+└── types/
+    ├── app.ts               # 应用类型定义
+    └── twitter.ts           # Twitter相关类型定义
 ```
 
-### Loading the Extension in Chrome
+## 权限说明
 
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode" (toggle in the top-right corner)
-3. Click "Load unpacked" and select the `dist` directory
+本扩展需要以下权限:
 
-## Project Structure
+- `storage`: 存储设置和分析结果
+- `tabs`: 创建和管理标签页
+- `activeTab`: 访问当前标签页
+- `scripting`: 执行内容脚本，用于爬取用户数据
+- `*://*.twitter.com/*`, `*://*.x.com/*`: 在Twitter网站上运行内容脚本
 
-- `src/`: Source code
-  - `background/`: Background script
-  - `content/`: Content scripts
-    - `twitter/`: Twitter-specific content script
-    - `edge-posting/`: Edge Posting-specific content script
-  - `popup/`: Popup UI components
-  - `lib/`: Shared libraries
-  - `types/`: TypeScript type definitions
-- `public/`: Static assets
-  - `manifest.json`: Extension manifest
-  - `images/`: Icons and images
-- `dist/`: Compiled output (generated)
-- `scripts/`: Build scripts
+## 隐私说明
 
-## License
+- 所有用户数据分析仅在本地进行，除非启用OpenAI API
+- 搜索历史可在设置中选择是否保存
+- 不会收集或传输任何个人身份信息
 
-MIT 
+## 许可证
+
+MIT License

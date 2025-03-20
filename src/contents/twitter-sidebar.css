@@ -1,0 +1,561 @@
+/* Twitter侧边栏样式 */
+.twitter-sidebar-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 350px;
+  height: 100vh;
+  background: white;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.twitter-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 头部 */
+.sidebar-header {
+  padding: 12px 16px;
+  background-color: #1da1f2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.sidebar-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.close-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.2s;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 标签栏 */
+.sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid #e6ecf0;
+  text-align: center;
+  align-items: center;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+  color: #657786;
+  transition: all 0.2s;
+  
+}
+
+.tab-button:hover {
+  color: #1da1f2;
+  background-color: rgba(29, 161, 242, 0.1);
+}
+
+.tab-button.active {
+  color: #1da1f2;
+  border-bottom-color: #1da1f2;
+}
+
+/* 内容区域 */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* 搜索框 */
+.search-box {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 16px 10px 40px;
+  border-radius: 9999px;
+  border: 1px solid #e6ecf0;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  outline: none;
+}
+
+.search-box input:focus {
+  border-color: #1da1f2;
+  box-shadow: 0 0 0 1px #1da1f288;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background-color: #657786;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+  mask-size: cover;
+  -webkit-mask-size: cover;
+}
+
+/* 搜索结果 */
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-search-result {
+  display: flex;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e6ecf0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sidebar-search-result:hover {
+  background-color: #f7f9f9;
+}
+
+.user-avatar {
+  position: relative;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.user-avatar img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.verified-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background-color: #1da1f2;
+  border-radius: 50%;
+  border: 2px solid white;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z' fill='white'/%3E%3C/svg%3E");
+  background-size: 12px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.user-info {
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.user-name {
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-username {
+  color: #657786;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.user-description {
+  font-size: 14px;
+  color: #14171a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* 已选择用户 */
+.selected-users {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar-selected-user {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e6ecf0;
+  background-color: #f7f9f9;
+}
+
+.user-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.analyze-button {
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background-color: #1da1f2;
+  color: white;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.analyze-button:hover:not(:disabled) {
+  background-color: #1a91da;
+}
+
+.analyze-button:disabled {
+  background-color: #9bd0f5;
+  cursor: not-allowed;
+}
+
+.remove-button {
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background-color: transparent;
+  color: #657786;
+  border: 1px solid #657786;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.remove-button:hover {
+  background-color: rgba(101, 119, 134, 0.1);
+}
+
+/* 分析结果 */
+.analysis-results {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sidebar-analysis-item {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e6ecf0;
+  background-color: white;
+}
+
+.user-info-compact {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.user-info-compact .user-avatar {
+  margin-right: 12px;
+}
+
+.user-info-compact .user-avatar img {
+  width: 36px;
+  height: 36px;
+}
+
+.analyze-button-large {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 9999px;
+  background-color: #1da1f2;
+  color: white;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.analyze-button-large:hover:not(:disabled) {
+  background-color: #1a91da;
+}
+
+.analyze-button-large:disabled {
+  background-color: #9bd0f5;
+  cursor: not-allowed;
+}
+
+/* 分析内容 */
+.analysis-summary, .analysis-traits, .analysis-interests, .analysis-communication {
+  margin-bottom: 16px;
+}
+
+.analysis-summary h3, .analysis-traits h3, .analysis-interests h3, .analysis-communication h3, .reply-templates h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #14171a;
+}
+
+.analysis-summary p, .analysis-communication p {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #14171a;
+}
+
+.traits-list, .interests-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trait-tag {
+  padding: 4px 10px;
+  background-color: #e8f5fd;
+  color: #1da1f2;
+  border-radius: 9999px;
+  font-size: 13px;
+}
+
+.interest-tag {
+  padding: 4px 10px;
+  background-color: #f5f8fa;
+  color: #657786;
+  border: 1px solid #e6ecf0;
+  border-radius: 9999px;
+  font-size: 13px;
+}
+
+/* 回复模板 */
+.templates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.template-item {
+  padding: 12px;
+  background-color: #f5f8fa;
+  border-radius: 8px;
+  position: relative;
+}
+
+.template-item p {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #14171a;
+  margin-bottom: 8px;
+}
+
+.copy-button {
+  padding: 4px 10px;
+  background-color: transparent;
+  color: #1da1f2;
+  border: 1px solid #1da1f2;
+  border-radius: 9999px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-button:hover {
+  background-color: rgba(29, 161, 242, 0.1);
+}
+
+.analysis-timestamp {
+  font-size: 12px;
+  color: #657786;
+  text-align: right;
+  margin-top: 16px;
+}
+
+/* 通知和错误 */
+.sidebar-notification {
+  margin: 8px 16px;
+  padding: 8px 12px;
+  background-color: #e8f5fd;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1da1f2;
+  animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
+}
+
+.sidebar-error {
+  margin: 8px 16px;
+  padding: 8px 12px;
+  background-color: #ffebe9;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #d63939;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-error button {
+  background: none;
+  border: none;
+  color: #d63939;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.empty-state p {
+  margin-bottom: 16px;
+  color: #657786;
+  font-size: 15px;
+}
+
+.action-button {
+  padding: 8px 16px;
+  background-color: #1da1f2;
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.action-button:hover {
+  background-color: #1a91da;
+}
+
+.search-hint {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f5f8fa;
+  border-radius: 12px;
+}
+
+.search-hint p {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #14171a;
+}
+
+.search-hint ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.search-hint li {
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: #657786;
+  position: relative;
+  padding-left: 20px;
+}
+
+.search-hint li:before {
+  content: "•";
+  position: absolute;
+  left: 8px;
+  color: #1da1f2;
+}
+
+.no-results {
+  text-align: center;
+  padding: 30px 0;
+  color: #657786;
+}
+
+/* 触发按钮 */
+.twitter-analysis-button {
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #1da1f2;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 9000;
+  transition: transform 0.2s;
+}
+
+.twitter-analysis-button:hover {
+  transform: scale(1.1);
+}
+
+/* 悬停分析按钮 */
+.hover-analysis-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 4px 8px;
+  background-color: #1da1f2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.9;
+  z-index: 10;
+  transform: translate(25%, -25%);
+}
+
+.hover-analysis-button:hover {
+  opacity: 1;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+} 

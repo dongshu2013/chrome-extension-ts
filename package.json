@@ -1,24 +1,65 @@
 {
-  "name": "ai-character-builder",
-  "version": "1.0.0",
-  "description": "Build personalized AI characters by browsing website content",
+  "name": "twitter-user-analysis",
+  "displayName": "Twitter 用户分析助手",
+  "version": "0.0.1",
+  "description": "在Twitter上分析用户的个性特征，并生成针对性的回复",
+  "author": "cocoguo7636@gmail.com",
   "scripts": {
-    "build": "webpack --config webpack.config.js",
-    "watch": "webpack --config webpack.config.js --watch",
-    "dev": "npx webpack --config webpack.config.js --mode development --watch",
-    "prod": "webpack --config webpack.config.js --mode production"
+    "dev": "plasmo dev",
+    "build": "plasmo build",
+    "package": "plasmo package"
   },
   "dependencies": {
-    "webextension-polyfill": "^0.10.0"
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^6.4.8",
+    "@mui/material": "^6.4.8",
+    "@plasmohq/storage": "^1.15.0",
+    "plasmo": "0.90.3",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.260",
-    "@types/mocha": "^10.0.10",
-    "@types/webextension-polyfill": "^0.10.7",
-    "copy-webpack-plugin": "^12.0.2",
-    "ts-loader": "^9.5.1",
-    "typescript": "^5.3.3",
-    "webpack": "5.98.0",
-    "webpack-cli": "5.1.4"
+    "@ianvs/prettier-plugin-sort-imports": "4.1.1",
+    "@types/chrome": "0.0.258",
+    "@types/node": "20.11.5",
+    "@types/react": "18.2.48",
+    "@types/react-dom": "18.2.18",
+    "prettier": "3.2.4",
+    "typescript": "5.3.3"
+  },
+  "manifest": {
+    "name": "Twitter 用户分析助手",
+    "description": "分析 Twitter 用户的个性特征，生成个性化回复，提升社交体验",
+    "host_permissions": [
+      "*://*.twitter.com/*",
+      "*://*.x.com/*",
+      "*://api.twitter.com/*"
+    ],
+    "permissions": [
+      "storage",
+      "tabs",
+      "activeTab",
+      "scripting"
+    ],
+    "action": {
+      "default_title": "Twitter 用户分析",
+      "default_popup": "popup.html"
+    },
+    "options_ui": {
+      "page": "options.html",
+      "open_in_tab": true
+    },
+    "web_accessible_resources": [
+      {
+        "resources": [
+          "*.css"
+        ],
+        "matches": [
+          "*://*.twitter.com/*",
+          "*://*.x.com/*"
+        ]
+      }
+    ]
   }
 }
