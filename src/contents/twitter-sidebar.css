@@ -9,7 +9,8 @@
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.15);
   z-index: 9999;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
 }
 
 .twitter-sidebar {
@@ -74,7 +75,6 @@
   font-weight: 600;
   color: #657786;
   transition: all 0.2s;
-  
 }
 
 .tab-button:hover {
@@ -319,24 +319,33 @@
 }
 
 /* 分析内容 */
-.analysis-summary, .analysis-traits, .analysis-interests, .analysis-communication {
+.analysis-summary,
+.analysis-traits,
+.analysis-interests,
+.analysis-communication {
   margin-bottom: 16px;
 }
 
-.analysis-summary h3, .analysis-traits h3, .analysis-interests h3, .analysis-communication h3, .reply-templates h3 {
+.analysis-summary h3,
+.analysis-traits h3,
+.analysis-interests h3,
+.analysis-communication h3,
+.reply-templates h3 {
   font-size: 15px;
   font-weight: 700;
   margin-bottom: 8px;
   color: #14171a;
 }
 
-.analysis-summary p, .analysis-communication p {
+.analysis-summary p,
+.analysis-communication p {
   font-size: 14px;
   line-height: 1.4;
   color: #14171a;
 }
 
-.traits-list, .interests-list {
+.traits-list,
+.interests-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -410,7 +419,9 @@
   border-radius: 4px;
   font-size: 14px;
   color: #1da1f2;
-  animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
+  animation:
+    fadeIn 0.3s,
+    fadeOut 0.3s 2.7s;
 }
 
 .sidebar-error {
@@ -551,11 +562,19 @@
 
 /* 动画 */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-} 
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
