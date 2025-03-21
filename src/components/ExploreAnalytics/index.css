@@ -1,0 +1,106 @@
+/* Analytics container */
+.analytics-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.analytics-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.stats-card,
+.activity-card {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 16px;
+}
+
+.stats-card h3,
+.activity-card h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-label {
+  font-size: 14px;
+  color: var(--text-tertiary);
+}
+
+.join-date {
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--text-tertiary);
+}
+
+.activity-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-label {
+  font-size: 14px;
+  color: var(--text-tertiary);
+}
+
+.activity-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.analytics-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn {
+  background-color: var(--accent-color, #805ad5);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn:hover {
+  background-color: var(--accent-color-dark, #805ad5);
+}
+
+.btn:disabled {
+  background-color: var(--text-color-tertiary, #aab8c2);
+  cursor: not-allowed;
+}

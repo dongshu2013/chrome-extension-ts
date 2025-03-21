@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react"
 
-import "../style.css"
-
-import { aiService } from "../services/ai"
+import "./index.css"
 
 interface UserStats {
   followersCount: number
@@ -30,35 +28,59 @@ const ExploreAnalytics: React.FC<ExploreAnalyticsProps> = ({ username }) => {
   const [userActivity, setUserActivity] = useState<UserActivity | null>(null)
 
   useEffect(() => {
-    // In a real implementation, this would fetch data from your backend
     const fetchUserAnalytics = async () => {
       try {
         setLoading(true)
-
-        // Simulate API call with timeout
-        await new Promise((resolve) => setTimeout(resolve, 1500))
-
-        // Mock data for demonstration
-        setUserStats({
-          followersCount: 12345,
-          followingCount: 654,
-          tweetsCount: 2876,
-          likesCount: 5432,
-          joinDate: "2018-03-15"
-        })
-
-        setUserActivity({
-          tweetsPerDay: 3.2,
-          mostActiveDay: "Saturday",
-          mostActiveHour: "18:00",
-          engagementRate: 4.7
-        })
-
         setError(null)
+
+        // Use chrome.runtime.sendMessage to get user analytics
+        chrome.runtime.sendMessage(
+          {
+            type: "GET_USER_ANALYTICS",
+            username
+          },
+          (response) => {
+            if (response && response.success) {
+              if (response.stats) {
+                setUserStats(response.stats)
+              }
+              if (response.activity) {
+                setUserActivity(response.activity)
+              }
+            } else {
+              console.error("Failed to get user analytics:", response?.error)
+              setError(
+                "Failed to fetch user analytics. Please try again later."
+              )
+
+              // Generate some default data for display
+              setUserStats({
+                followersCount: Math.floor(Math.random() * 10000),
+                followingCount: Math.floor(Math.random() * 1000),
+                tweetsCount: Math.floor(Math.random() * 5000),
+                likesCount: Math.floor(Math.random() * 10000),
+                joinDate: new Date(
+                  Date.now() - Math.random() * 5 * 365 * 24 * 60 * 60 * 1000
+                )
+                  .toISOString()
+                  .split("T")[0]
+              })
+
+              setUserActivity({
+                tweetsPerDay: parseFloat((Math.random() * 5).toFixed(1)),
+                mostActiveDay: ["Monday", "Wednesday", "Friday", "Saturday"][
+                  Math.floor(Math.random() * 4)
+                ],
+                mostActiveHour: `${Math.floor(Math.random() * 12 + 1)}:00 ${Math.random() > 0.5 ? "AM" : "PM"}`,
+                engagementRate: parseFloat((Math.random() * 10).toFixed(1))
+              })
+            }
+            setLoading(false)
+          }
+        )
       } catch (err) {
         console.error("Error fetching user analytics:", err)
-        setError("获取用户分析数据失败，请稍后重试")
-      } finally {
+        setError("Failed to fetch user analytics. Please try again later.")
         setLoading(false)
       }
     }
@@ -66,7 +88,7 @@ const ExploreAnalytics: React.FC<ExploreAnalyticsProps> = ({ username }) => {
     if (username) {
       fetchUserAnalytics()
     } else {
-      setError("未提供用户名")
+      setError("No username provided")
       setLoading(false)
     }
   }, [username])
@@ -75,7 +97,7 @@ const ExploreAnalytics: React.FC<ExploreAnalyticsProps> = ({ username }) => {
     return (
       <div className="analytics-loading">
         <div className="spinner"></div>
-        <p>加载用户分析...</p>
+        <p>Loading user analytics...</p>
       </div>
     )
   }
@@ -87,7 +109,7 @@ const ExploreAnalytics: React.FC<ExploreAnalyticsProps> = ({ username }) => {
         <button
           className="btn btn-outline"
           onClick={() => window.location.reload()}>
-          重试
+          Retry
         </button>
       </div>
     )
@@ -95,40 +117,40 @@ const ExploreAnalytics: React.FC<ExploreAnalyticsProps> = ({ username }) => {
 
   return (
     <div className="analytics-container">
-      <h2 className="analytics-title">用户分析: @{username}</h2>
+      <h2 className="analytics-title">User Analysis: @{username}</h2>
 
       {userStats && (
         <div className="stats-card">
-          <h3>账号概况</h3>
+          <h3>Account Overview</h3>
           <div className="stats-grid">
             <div className="stat-item">
               <span className="stat-value">
                 {userStats.followersCount.toLocaleString()}
               </span>
-              <span className="stat-label">粉丝</span>
+              <span className="stat-label">Followers</span>
             </div>
             <div className="stat-item">
               <span className="stat-value">
                 {userStats.followingCount.toLocaleString()}
               </span>
-              <span className="stat-label">关注</span>
+              <span className="stat-label">Following</span>
             </div>
             <div className="stat-item">
               <span className="stat-value">
                 {userStats.tweetsCount.toLocaleString()}
               </span>
-              <span className="stat-label">推文</span>
+              <span className="stat-label">Tweets</span>
             </div>
             <div className="stat-item">
               <span className="stat-value">
                 {userStats.likesCount.toLocaleString()}
               </span>
-              <span className="stat-label">喜欢</span>
+              <span className="stat-label">Likes</span>
             </div>
           </div>
           <p className="join-date">
-            加入时间:{" "}
-            {new Date(userStats.joinDate).toLocaleDateString("zh-CN", {
+            Joined:{" "}
+            {new Date(userStats.joinDate).toLocaleDateString("en-US", {
               year: "numeric",
               month: "long",
               day: "numeric"
@@ -139,23 +161,23 @@ const ExploreAnalytics: React.FC<ExploreAnalyticsProps> = ({ username }) => {
 
       {userActivity && (
         <div className="activity-card">
-          <h3>活跃度分析</h3>
+          <h3>Activity Analysis</h3>
           <div className="activity-item">
-            <span className="activity-label">平均每日推文:</span>
+            <span className="activity-label">Average daily tweets:</span>
             <span className="activity-value">{userActivity.tweetsPerDay}</span>
           </div>
           <div className="activity-item">
-            <span className="activity-label">最活跃日:</span>
+            <span className="activity-label">Most active day:</span>
             <span className="activity-value">{userActivity.mostActiveDay}</span>
           </div>
           <div className="activity-item">
-            <span className="activity-label">最活跃时段:</span>
+            <span className="activity-label">Most active time:</span>
             <span className="activity-value">
               {userActivity.mostActiveHour}
             </span>
           </div>
           <div className="activity-item">
-            <span className="activity-label">互动率:</span>
+            <span className="activity-label">Engagement rate:</span>
             <span className="activity-value">
               {userActivity.engagementRate}%
             </span>
@@ -164,8 +186,8 @@ const ExploreAnalytics: React.FC<ExploreAnalyticsProps> = ({ username }) => {
       )}
 
       <div className="analytics-actions">
-        <button className="btn btn-primary">生成详细报告</button>
-        <button className="btn btn-outline">导出数据</button>
+        <button className="btn btn-primary">Generate Detailed Report</button>
+        <button className="btn btn-outline">Export Data</button>
       </div>
     </div>
   )

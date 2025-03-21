@@ -2,247 +2,166 @@ import React, { useEffect, useState } from "react"
 
 import "./style.css"
 
-import ExploreAnalytics from "./components/ExploreAnalytics"
-
-// 简单日志
-const log = (message: string, ...data: any[]) => {
-  console.log(`[Popup] ${message}`, ...data)
+// Logging
+function log(message: string, ...args: any[]) {
+  console.log(`[Twitter Analyzer] ${message}`, ...args)
 }
 
-// 错误日志
-const logError = (message: string, error: any) => {
-  console.error(`[Popup Error] ${message}`, error)
+function logError(message: string, error: any) {
+  console.error(`[Twitter Analyzer] ERROR: ${message}`, error)
 }
 
-// 弹出窗口组件
+// Check if the current tab is a Twitter page
+async function isTwitterPage(url: string): Promise<boolean> {
+  return url.includes("twitter.com") || url.includes("x.com")
+}
+
+// Extract username from Twitter URL
+function extractUsername(url: string): string | null {
+  const match = url.match(/(?:twitter\.com|x\.com)\/([^/\?]+)/)
+  return match ? match[1] : null
+}
+
+// Get parameters from URL
+function getParameterByName(name: string, url = window.location.href) {
+  name = name.replace(/[\[\]]/g, "\\$&")
+  const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)")
+  const results = regex.exec(url)
+  if (!results) return null
+  if (!results[2]) return ""
+  return decodeURIComponent(results[2].replace(/\+/g, " "))
+}
+
+// Popup component
 function Popup() {
+  const [username, setUsername] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [hasTwitterTab, setHasTwitterTab] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState<
-    "connected" | "disconnected" | "checking"
-  >("checking")
-  const [activeTab, setActiveTab] = useState<"main" | "analytics">("main")
-  const [username, setUsername] = useState<string>("")
+  const [connected, setConnected] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
-  // 初始加载
+  // Add FontAwesome
   useEffect(() => {
-    log("弹出窗口初始化")
+    const link = document.createElement("link")
+    link.rel = "stylesheet"
+    link.href =
+      "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    document.head.appendChild(link)
+  }, [])
 
-    // 初始化检查
-    const init = async () => {
+  // Initialize
+  useEffect(() => {
+    async function init() {
       try {
-        // 检查Twitter标签页
-        try {
-          log("检查Twitter标签页")
-          const tabs = await chrome.tabs.query({
-            url: ["*://*.twitter.com/*", "*://*.x.com/*"]
-          })
-          log("找到Twitter标签页", tabs.length)
-          setHasTwitterTab(tabs.length > 0)
-        } catch (err) {
-          logError("检查Twitter标签页失败", err)
-        }
+        // Check current tab
+        log("Getting current tab")
+        const tabs = await chrome.tabs.query({
+          active: true,
+          currentWindow: true
+        })
+        const url = tabs[0].url || ""
 
-        // 检查后台连接
-        try {
-          log("检查后台连接")
-          chrome.runtime.sendMessage({ type: "PING" }, (response) => {
-            log("后台连接响应", response)
+        // Check if this is a Twitter page
+        const isTwitter = await isTwitterPage(url)
+        log(`Is Twitter page: ${isTwitter}`)
 
-            if (
-              response &&
-              typeof response === "object" &&
-              "success" in response
-            ) {
-              setConnectionStatus("connected")
+        if (isTwitter) {
+          // Get username from URL
+          const usernameFromUrl = extractUsername(url)
+          if (usernameFromUrl && usernameFromUrl !== "home") {
+            setUsername(usernameFromUrl)
+            setConnected(true)
+          } else {
+            // Try to get username from URL parameters
+            const usernameFromParam = getParameterByName("username")
+            if (usernameFromParam) {
+              setUsername(usernameFromParam)
+              setConnected(true)
             } else {
-              setConnectionStatus("disconnected")
+              setError("Please navigate to a Twitter user profile to analyze.")
             }
-          })
-        } catch (err) {
-          logError("连接后台失败", err)
-          setConnectionStatus("disconnected")
+          }
+        } else {
+          setError("Please open Twitter to use this extension.")
         }
       } catch (err) {
-        logError("初始化失败", err)
+        logError("Error initializing popup", err)
+        setError("Failed to initialize. Please refresh and try again.")
       } finally {
-        // 延迟一下设置loading状态，确保UI已更新
-        setTimeout(() => {
-          setLoading(false)
-        }, 500)
+        setLoading(false)
       }
     }
 
     init()
   }, [])
 
-  // 打开侧边栏
-  const openSidebar = () => {
-    log("准备打开侧边栏")
+  // Open analytics in sidebar
+  const openAnalytics = async () => {
+    if (!username) {
+      setError("Please navigate to a Twitter user profile first.")
+      return
+    }
 
+    log(`Opening analytics for ${username}`)
     try {
-      // 查找当前活动的Twitter标签
-      chrome.tabs.query(
-        {
-          active: true,
-          url: ["*://*.twitter.com/*", "*://*.x.com/*"]
-        },
-        (tabs) => {
-          log("当前Twitter标签", tabs)
+      const tabs = await chrome.tabs.query({
+        active: true,
+        currentWindow: true
+      })
+      const tabId = tabs[0]?.id
 
-          if (tabs.length > 0 && tabs[0].id) {
-            const tabId = tabs[0].id
-            log(`向标签 ${tabId} 发送OPEN_SIDEBAR消息`)
+      if (!tabId) throw new Error("No active tab found")
 
-            // 找到Twitter标签，注入侧边栏
-            chrome.tabs.sendMessage(
-              tabId,
-              { action: "OPEN_SIDEBAR" },
-              (response) => {
-                log("侧边栏响应", response)
-                window.close() // 关闭弹出窗口
-              }
-            )
-          } else {
-            // 没有找到Twitter标签，尝试查找任何Twitter标签
-            chrome.tabs.query(
-              {
-                url: ["*://*.twitter.com/*", "*://*.x.com/*"]
-              },
-              (allTwitterTabs) => {
-                log("所有Twitter标签", allTwitterTabs)
-
-                if (allTwitterTabs.length > 0 && allTwitterTabs[0].id) {
-                  const tabId = allTwitterTabs[0].id
-                  log(`切换到标签 ${tabId}`)
-
-                  // 切换到第一个Twitter标签
-                  chrome.tabs.update(tabId, { active: true }, () => {
-                    log(`向标签 ${tabId} 发送OPEN_SIDEBAR消息`)
-
-                    // 注入侧边栏
-                    chrome.tabs.sendMessage(
-                      tabId,
-                      { action: "OPEN_SIDEBAR" },
-                      (response) => {
-                        log("侧边栏响应", response)
-                        window.close() // 关闭弹出窗口
-                      }
-                    )
-                  })
-                } else {
-                  // 没有找到任何Twitter标签
-                  log("未找到Twitter标签页")
-                  setError("未找到Twitter标签页，请先打开Twitter")
-                }
-              }
-            )
-          }
-        }
-      )
+      await chrome.tabs.sendMessage(tabId, {
+        action: "OPEN_SIDEBAR",
+        username: username
+      })
     } catch (err) {
-      logError("打开侧边栏失败", err)
-      setError("打开侧边栏失败，请刷新页面后重试")
+      logError("Failed to open sidebar", err)
+      setError("Failed to open sidebar. Please refresh the page and try again.")
     }
   }
 
-  // 打开选项页
-  const openOptions = () => {
-    log("打开选项页")
-    try {
-      chrome.tabs.create({ url: "options.html" })
-    } catch (err) {
-      logError("打开选项页失败", err)
-    }
-  }
-
-  // 打开Twitter
+  // Open Twitter
   const openTwitter = () => {
-    log("打开Twitter")
-    try {
-      chrome.tabs.create({ url: "https://twitter.com" })
-    } catch (err) {
-      logError("打开Twitter失败", err)
-    }
+    log("Opening Twitter")
+    chrome.tabs.create({ url: "https://twitter.com" })
   }
 
-  // 打开分析页面
-  const openAnalytics = () => {
-    log("打开分析页面")
-    setActiveTab("analytics")
-    // 模拟获取当前用户，真实场景下应该从Twitter页面获取
-    setUsername("example_user")
-  }
-
-  // 返回主页
-  const backToMain = () => {
-    log("返回主页")
-    setActiveTab("main")
-  }
-
-  // 显示加载状态
+  // If loading
   if (loading) {
     return (
       <div className="popup-container loading">
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p className="loading-text">加载中...</p>
-        </div>
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
       </div>
     )
   }
 
-  // 渲染分析页面
-  if (activeTab === "analytics") {
+  // If error
+  if (error && !connected) {
     return (
-      <div className="popup-container">
-        <div className="header-with-back">
-          <button className="btn-icon" onClick={backToMain}>
-            <span className="icon-back">←</span>
-          </button>
-          <h1 className="popup-title">用户分析</h1>
+      <div className="popup-container error">
+        <div className="error-message">
+          <span className="icon-error"></span>
+          <p>{error}</p>
         </div>
-
-        <ExploreAnalytics username={username} />
+        <div className="actions-container">
+          <button className="btn btn-primary" onClick={openTwitter}>
+            <span className="icon-open"></span>
+            Open Twitter
+          </button>
+        </div>
       </div>
     )
   }
-
-  // 渲染主界面
+  // Main view
   return (
     <div className="popup-container">
-      <h1 className="popup-title">Twitter 用户分析助手</h1>
-
-      {error && <div className="error-alert">{error}</div>}
-
-      {connectionStatus === "disconnected" && (
-        <div className="warning-alert">
-          扩展连接已断开，请尝试刷新页面或重启浏览器
-        </div>
-      )}
-
-      <div className="card">
-        <div className="card-content">
-          <div className="card-header">
-            <span className="icon-analytics"></span>
-            <h2 className="card-title">分析控制台</h2>
-          </div>
-          <p className="card-description">
-            {hasTwitterTab
-              ? "已检测到Twitter页面，可以打开侧边栏进行分析"
-              : "未检测到Twitter页面，请先打开Twitter"}
-          </p>
-        </div>
-        <hr className="divider" />
-        <div className="card-actions">
-          <button
-            className="btn btn-primary"
-            onClick={openSidebar}
-            disabled={!hasTwitterTab || connectionStatus !== "connected"}>
-            <span className="icon-open"></span>
-            打开分析侧边栏
-          </button>
+      <div className="popup-header">
+        <div className="logo">
+          <span className="icon-logo"></span>
+          <h1>Twitter Analyzer</h1>
         </div>
       </div>
 
@@ -250,17 +169,18 @@ function Popup() {
         <div className="card-content">
           <div className="card-header">
             <span className="icon-explore"></span>
-            <h2 className="card-title">探索分析</h2>
+            <h2 className="card-title">Explore Analytics</h2>
           </div>
+          {username && <p className="username">@{username}</p>}
           <p className="card-description">
-            查看用户统计数据、活跃度分析和互动模式
+            View user statistics, activity analysis, and interaction patterns
           </p>
         </div>
         <hr className="divider" />
         <div className="card-actions">
           <button className="btn btn-primary" onClick={openAnalytics}>
             <span className="icon-stats"></span>
-            查看用户分析
+            View User Analytics
           </button>
         </div>
       </div>
@@ -268,11 +188,7 @@ function Popup() {
       <div className="actions-container">
         <button className="btn btn-outline" onClick={openTwitter}>
           <span className="icon-open"></span>
-          打开Twitter
-        </button>
-        <button className="btn btn-outline" onClick={openOptions}>
-          <span className="icon-settings"></span>
-          设置
+          Open Twitter
         </button>
       </div>
     </div>

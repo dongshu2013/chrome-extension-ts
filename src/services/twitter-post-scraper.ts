@@ -1,5 +1,5 @@
-import { Settings } from "../types"
-import { TwitterPost } from "../types/twitter"
+import type { Settings } from "../types"
+import type { TwitterPost } from "../types/twitter"
 import { aiService } from "./ai"
 
 /**
@@ -455,7 +455,7 @@ ${html.substring(0, Math.min(html.length, 100000))}` // Limit HTML length
       }
 
       // Method 2: Try AI extraction if settings are provided
-      if (settings && settings.apiKey) {
+      if (settings && settings.aiModelSettings.apiKey) {
         try {
           console.log("Attempting to get HTML for AI extraction")
 

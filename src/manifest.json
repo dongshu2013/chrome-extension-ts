@@ -1,4 +1,8 @@
 {
+  "name": "Twitter User Analyzer",
+  "version": "0.1.0",
+  "manifest_version": 3,
+  "description": "Analyze Twitter user characteristics and engagement patterns",
   "permissions": [
     "storage",
     "tabs",
@@ -6,11 +10,37 @@
     "scripting"
   ],
   "action": {
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "assets/icon16.png",
       "32": "assets/icon32.png",
       "48": "assets/icon48.png",
       "128": "assets/icon128.png"
     }
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.twitter.com/*",
+        "*://*.x.com/*"
+      ],
+      "js": [
+        "contents/profile-button.tsx",
+        "contents/sidebar.tsx"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "popup.html",
+        "*.js",
+        "*.css"
+      ],
+      "matches": [
+        "*://*.twitter.com/*",
+        "*://*.x.com/*"
+      ]
+    }
+  ]
 }

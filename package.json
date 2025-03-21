@@ -1,8 +1,8 @@
 {
   "name": "twitter-user-analysis",
-  "displayName": "Twitter 用户分析助手",
+  "displayName": "Twitter User Analysis Assistant",
   "version": "0.0.1",
-  "description": "在Twitter上分析用户的个性特征，并生成针对性的回复",
+  "description": "Analyze Twitter users' personality traits and generate targeted replies",
   "author": "cocoguo7636@gmail.com",
   "scripts": {
     "dev": "plasmo dev",
@@ -10,10 +10,10 @@
     "package": "plasmo package"
   },
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^6.4.8",
-    "@mui/material": "^6.4.8",
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.15.10",
+    "@mui/material": "^5.15.10",
     "@plasmohq/storage": "^1.15.0",
     "plasmo": "0.90.3",
     "react": "18.2.0",
@@ -29,8 +29,8 @@
     "typescript": "5.3.3"
   },
   "manifest": {
-    "name": "Twitter 用户分析助手",
-    "description": "分析 Twitter 用户的个性特征，生成个性化回复，提升社交体验",
+    "name": "Twitter User Analysis Assistant",
+    "description": "Analyze Twitter users' personality traits, generate personalized replies, and enhance social experience",
     "host_permissions": [
       "*://*.twitter.com/*",
       "*://*.x.com/*",
@@ -43,12 +43,12 @@
       "scripting"
     ],
     "action": {
-      "default_title": "Twitter 用户分析",
+      "default_title": "Twitter User Analysis",
       "default_popup": "popup.html"
     },
     "options_ui": {
       "page": "options.html",
-      "open_in_tab": true
+      "open_in_tab": false
     },
     "web_accessible_resources": [
       {
