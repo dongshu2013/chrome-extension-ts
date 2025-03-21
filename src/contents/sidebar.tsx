@@ -313,127 +313,153 @@ function TwitterSidebar({ username }: { username?: string }) {
     const scrapedPosts: Post[] = []
 
     try {
+      console.log("开始抓取推文...")
       // Try multiple selectors to find tweets (Twitter's DOM structure can vary)
       const tweetSelectors = [
-        'div[data-testid="cellInnerDiv"]',
-        'section[role="region"] div[data-testid="cellInnerDiv"]',
-        'div[aria-label*="Timeline"] div[data-testid="cellInnerDiv"]',
-        'div[data-testid="primaryColumn"] div[data-testid="cellInnerDiv"]'
+        'article[role="article"][data-testid="tweet"]',
+        'article[role="article"]',
+        'div[data-testid="cellInnerDiv"] article',
+        'section[role="region"] article',
+        'div[aria-label*="Timeline"] article'
       ]
 
       // Try each selector until we find tweets
-      let tweetContainers: NodeListOf<Element> | null = null
+      let tweetArticles: NodeListOf<Element> | null = null
       for (const selector of tweetSelectors) {
         const elements = document.querySelectorAll(selector)
         if (elements && elements.length > 0) {
-          tweetContainers = elements
+          console.log(`找到 ${elements.length} 个推文使用选择器: ${selector}`)
+          tweetArticles = elements
           break
         }
       }
 
       // If we didn't find any tweets, return empty array
-      if (!tweetContainers || tweetContainers.length === 0) {
-        console.warn("No tweet containers found on page")
+      if (!tweetArticles || tweetArticles.length === 0) {
+        console.warn("No tweet articles found on page")
         return []
       }
 
       // Username from URL for verification
       const urlUsername = getCurrentUsername().toLowerCase()
+      console.log("当前用户名:", urlUsername)
 
       // Process each tweet we found
-      tweetContainers.forEach((container, index) => {
+      tweetArticles.forEach((article, index) => {
         try {
           // First verify this is a tweet from the profile owner (not a retweet or reply)
-          const userLink = container.querySelector(
-            'a[role="link"][href*="/' + urlUsername + '"]'
+          // Look for links containing the username
+          const userLinks = article.querySelectorAll(
+            `a[href*="/${urlUsername}"]`
           )
-          if (!userLink) {
-            // Skip this container if it doesn't contain the user we're analyzing
+
+          // Skip this article if it doesn't contain the user we're analyzing
+          if (!userLinks || userLinks.length === 0) {
             return
           }
 
-          // Find the article element within the container
-          const tweetEl = container.querySelector(
-            'article[data-testid="tweet"]'
-          )
-          if (!tweetEl) return
+          console.log(`处理推文 #${index}`)
 
-          // Get tweet text with improved extraction
+          // Get tweet text using the specific Twitter testid
           let tweetText = ""
-          // Look specifically for the tweet text container
-          const tweetTextEl = tweetEl.querySelector(
+          const tweetTextElement = article.querySelector(
             'div[data-testid="tweetText"]'
           )
 
-          if (tweetTextEl) {
-            // Process the tweet text element to preserve formatting, links and hashtags
-            // Get all text nodes and links
-            const textNodes = Array.from(tweetTextEl.childNodes)
-            textNodes.forEach((node) => {
-              // Handle text nodes
-              if (node.nodeType === Node.TEXT_NODE) {
-                tweetText += node.textContent || ""
-              }
-              // Handle link elements (hashtags, mentions, URLs)
-              else if (node.nodeName === "A") {
-                const linkEl = node as HTMLAnchorElement
-                const href = linkEl.getAttribute("href") || ""
+          if (tweetTextElement) {
+            // Modern Twitter has the tweet text in this element
+            // Extract text with better preservation of format
 
-                // Add hashtags as they appear
-                if (href.includes("/hashtag/")) {
-                  tweetText += linkEl.textContent || ""
-                }
-                // Add mentions as they appear
-                else if (href.match(/\/[A-Za-z0-9_]+$/)) {
-                  tweetText += linkEl.textContent || ""
-                }
-                // Regular URLs
-                else {
-                  tweetText += linkEl.textContent || ""
-                }
+            // Recursive function to extract text from nodes
+            const extractTextFromNode = (node: Node): string => {
+              if (node.nodeType === Node.TEXT_NODE) {
+                return node.textContent || ""
               }
-              // Handle span elements (emojis, etc)
-              else if (node.nodeName === "SPAN" || node.nodeName === "IMG") {
-                tweetText += node.textContent || ""
+
+              if (node.nodeType === Node.ELEMENT_NODE) {
+                const element = node as Element
+
+                // Special handling for links (hashtags, mentions, URLs)
+                if (element.nodeName === "A") {
+                  const href = element.getAttribute("href") || ""
+                  const text = element.textContent || ""
+
+                  if (href.includes("/hashtag/")) {
+                    // This is a hashtag
+                    return text
+                  } else if (href.match(/\/[A-Za-z0-9_]+$/)) {
+                    // This is a mention
+                    return text
+                  } else {
+                    // This is a URL
+                    return text
+                  }
+                }
+
+                // For other elements, process all child nodes
+                let text = ""
+                element.childNodes.forEach((child) => {
+                  text += extractTextFromNode(child)
+                })
+                return text
               }
+
+              return ""
+            }
+
+            // Extract text from all nodes in the tweet text element
+            tweetTextElement.childNodes.forEach((node) => {
+              tweetText += extractTextFromNode(node)
             })
 
-            // Clean up the text
             tweetText = tweetText.trim()
           } else {
-            // Fallback to simpler text extraction
-            const textEl =
-              tweetEl.querySelector("div[lang]") ||
-              tweetEl.querySelector('div[dir="auto"]:not([aria-hidden="true"])')
-            tweetText = textEl ? textEl.textContent?.trim() || "" : ""
+            // Fallback method for older Twitter structure or if the main selector fails
+            const textDivs = article.querySelectorAll(
+              'div[lang], div[dir="auto"]'
+            )
+            textDivs.forEach((div) => {
+              // Skip hidden elements and those that are part of the UI
+              if (
+                div.getAttribute("aria-hidden") !== "true" &&
+                !div.closest('div[role="button"]') &&
+                !div.closest('a[role="link"]')
+              ) {
+                const content = div.textContent?.trim() || ""
+                if (content && tweetText.indexOf(content) === -1) {
+                  tweetText += content + " "
+                }
+              }
+            })
+            tweetText = tweetText.trim()
           }
 
-          // Extract the timestamp
-          const timeElement = tweetEl.querySelector("time")
-          const timestamp = timeElement
-            ? timeElement.dateTime
-            : new Date().toISOString()
+          if (!tweetText) {
+            console.log("没有找到推文文本，跳过")
+            return
+          }
 
-          // Extract tweet ID from the article's closest link with status
-          let tweetId = ""
-          const articleParent = tweetEl.closest('div[role="link"]')
-          if (articleParent) {
-            const linkHref = articleParent.getAttribute("href") || ""
-            const match = linkHref.match(/\/status\/(\d+)/)
-            if (match && match[1]) {
-              tweetId = match[1]
+          console.log("推文文本:", tweetText.substring(0, 50) + "...")
+
+          // Extract the timestamp
+          let timestamp = new Date().toISOString()
+          const timeElement = article.querySelector("time")
+          if (timeElement) {
+            const dateTime = timeElement.getAttribute("datetime")
+            if (dateTime) {
+              timestamp = dateTime
             }
           }
 
-          // If ID still not found, try to find it in any status link
-          if (!tweetId) {
-            const statusLink = tweetEl.querySelector('a[href*="/status/"]')
-            if (statusLink) {
-              const href = statusLink.getAttribute("href") || ""
-              const match = href.match(/\/status\/(\d+)/)
-              if (match && match[1]) {
-                tweetId = match[1]
-              }
+          // Extract tweet ID from status links
+          let tweetId = ""
+          const statusLinks = article.querySelectorAll('a[href*="/status/"]')
+          for (const link of statusLinks) {
+            const href = link.getAttribute("href") || ""
+            const match = href.match(/\/status\/(\d+)/)
+            if (match && match[1]) {
+              tweetId = match[1]
+              break
             }
           }
 
@@ -442,60 +468,90 @@ function TwitterSidebar({ username }: { username?: string }) {
             tweetId = `temp-${Date.now()}-${index}`
           }
 
-          // Get engagement metrics with improved selectors
+          // Get engagement metrics
           let likeCount = 0
           let retweetCount = 0
           let replyCount = 0
+          let viewCount = 0
 
-          // Look for the group containing metrics
-          const engagementGroup = tweetEl.querySelector('div[role="group"]')
+          // Find the group containing metrics (Twitter marks these with role="group")
+          const engagementGroup = article.querySelector('div[role="group"]')
+
           if (engagementGroup) {
-            // Extract metrics
-            // Likes
-            const likeButton = engagementGroup.querySelector(
-              'div[data-testid="like"]'
+            // Extract metric counts using data-testid attributes
+            // Look for the specific elements with testids
+
+            // Replies
+            const replyElement = engagementGroup.querySelector(
+              'div[data-testid="reply"]'
             )
-            if (likeButton) {
-              const likeText = likeButton.textContent || ""
-              likeCount = parseTwitterNumber(likeText)
+            if (replyElement) {
+              const replyText = replyElement.textContent || ""
+              replyCount = parseTwitterNumber(replyText)
             }
 
-            // Retweets
-            const retweetButton = engagementGroup.querySelector(
+            // Retweets/Reposts
+            const retweetElement = engagementGroup.querySelector(
               'div[data-testid="retweet"]'
             )
-            if (retweetButton) {
-              const retweetText = retweetButton.textContent || ""
+            if (retweetElement) {
+              const retweetText = retweetElement.textContent || ""
               retweetCount = parseTwitterNumber(retweetText)
             }
 
-            // Replies
-            const replyButton = engagementGroup.querySelector(
-              'div[data-testid="reply"]'
+            // Likes
+            const likeElement = engagementGroup.querySelector(
+              'div[data-testid="like"]'
             )
-            if (replyButton) {
-              const replyText = replyButton.textContent || ""
-              replyCount = parseTwitterNumber(replyText)
+            if (likeElement) {
+              const likeText = likeElement.textContent || ""
+              likeCount = parseTwitterNumber(likeText)
+            }
+
+            // Views (if available)
+            const analyticsLink = article.querySelector('a[href*="/analytics"]')
+            if (analyticsLink) {
+              const viewText = analyticsLink.textContent || ""
+              viewCount = parseTwitterNumber(viewText)
             }
           }
 
-          // Only add posts with content that match the profile we're viewing
-          if (tweetText.length > 0) {
-            scrapedPosts.push({
-              id: tweetId,
-              text: tweetText,
-              timestamp: timestamp,
-              likeCount: likeCount,
-              retweetCount: retweetCount,
-              replyCount: replyCount
-            })
+          // If no metrics found with data-testid, try the fallback method
+          if (likeCount === 0 && retweetCount === 0 && replyCount === 0) {
+            // Fallback: Look for all the numbers within the engagement group
+            const engagementTexts = engagementGroup
+              ? Array.from(engagementGroup.querySelectorAll("span"))
+                  .map((span) => span.textContent || "")
+                  .filter((text) => /^\d+$|^\d+[KkMm]$/.test(text.trim()))
+              : []
+
+            if (engagementTexts.length >= 3) {
+              // Typically the order is replies, retweets, likes
+              replyCount = parseTwitterNumber(engagementTexts[0])
+              retweetCount = parseTwitterNumber(engagementTexts[1])
+              likeCount = parseTwitterNumber(engagementTexts[2])
+            }
           }
+
+          console.log(
+            `互动数据: 回复=${replyCount}, 转发=${retweetCount}, 点赞=${likeCount}, 浏览=${viewCount}`
+          )
+
+          // Add the post to our collection
+          scrapedPosts.push({
+            id: tweetId,
+            text: tweetText,
+            timestamp: timestamp,
+            likeCount: likeCount,
+            retweetCount: retweetCount,
+            replyCount: replyCount
+          })
         } catch (error) {
-          console.error("Error processing tweet:", error)
+          console.error("处理推文时出错:", error)
         }
       })
 
-      console.log(`Scraped ${scrapedPosts.length} posts from page`)
+      console.log(`成功爬取 ${scrapedPosts.length} 条推文`)
       return scrapedPosts
     } catch (error) {
       console.error("Error in scrapeUserPostsFromDOM:", error)
@@ -507,18 +563,31 @@ function TwitterSidebar({ username }: { username?: string }) {
   function parseTwitterNumber(text: string): number {
     if (!text) return 0
 
-    // Extract number pattern
-    const match = text.replace(/[,\s]/g, "").match(/(\d+(\.\d+)?)[KkMmBb]?/)
+    // Clean up the text and extract just the number part
+    const cleanText = text.replace(/[,\s]/g, "").trim()
+
+    // Handle cases like "34K", "1.5M", etc.
+    const match = cleanText.match(/^(\d+(\.\d+)?)([KkMmBb])?$/)
     if (!match) return 0
 
     const num = parseFloat(match[1])
-    const multiplier = text.match(/[Kk]/)
-      ? 1000
-      : text.match(/[Mm]/)
-        ? 1000000
-        : text.match(/[Bb]/)
-          ? 1000000000
-          : 1
+    let multiplier = 1
+
+    // Check for suffixes
+    if (match[3]) {
+      const suffix = match[3].toUpperCase()
+      switch (suffix) {
+        case "K":
+          multiplier = 1000
+          break
+        case "M":
+          multiplier = 1000000
+          break
+        case "B":
+          multiplier = 1000000000
+          break
+      }
+    }
 
     return Math.round(num * multiplier)
   }
