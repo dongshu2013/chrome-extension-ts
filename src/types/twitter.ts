@@ -86,3 +86,73 @@ export interface TwitterApiSearchResponse {
     }
   }[]
 }
+
+/**
+ * Twitter profile information interface
+ */
+export interface TwitterProfile {
+  username: string
+  displayName: string
+  bio?: string
+  avatar?: string
+  banner?: string
+  followersCount?: number
+  followingCount?: number
+  postsCount?: number
+  isVerified?: boolean
+  joinDate?: string
+  location?: string
+  website?: string
+  profileUrl: string
+}
+
+/**
+ * Twitter post media interface
+ */
+export interface TwitterPostMedia {
+  type: "image" | "video" | "gif" | "audio"
+  url: string
+  thumbnailUrl?: string
+  altText?: string
+  duration?: string // For videos/audio
+}
+
+/**
+ * Twitter post data interface with detailed metrics
+ */
+export interface TwitterPostData {
+  id: string
+  text: string
+  html?: string // Original HTML content
+  createdAt: string
+  authorUsername: string
+  authorDisplayName: string
+  authorProfileUrl: string
+  authorAvatar?: string
+  isVerified?: boolean
+  likeCount: number
+  retweetCount: number
+  replyCount: number
+  viewCount?: number
+  media?: TwitterPostMedia[]
+  links?: string[]
+  hashtags?: string[]
+  mentionedUsers?: string[]
+  isReply?: boolean
+  replyToId?: string
+  replyToUsername?: string
+  isRetweet?: boolean
+  originalTweetId?: string
+  originalTweetUsername?: string
+  quoteContent?: string
+  postUrl: string
+}
+
+/**
+ * Twitter profile data with posts interface
+ */
+export interface TwitterProfileData {
+  profile: TwitterProfile
+  posts: TwitterPostData[]
+  scrapedAt: number // Timestamp when the data was scraped
+}

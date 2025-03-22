@@ -1,6 +1,9 @@
 // Background script for the extension
 import { Storage } from "@plasmohq/storage"
 
+import { saveTwitterProfileData } from "./services/apiService"
+import { TwitterProfileData } from "./types/twitter"
+
 // Initialize storage
 const storage = new Storage()
 
@@ -46,6 +49,13 @@ const DEFAULT_SETTINGS = {
     modelId: "gpt-3.5-turbo",
     temperature: 0.7,
     maxTokens: 2000
+  },
+
+  // API settings
+  apiSettings: {
+    apiUrl: "https://api.example.com/twitter-data",
+    apiKey: "",
+    enabled: false
   }
 }
 
@@ -99,8 +109,18 @@ async function initializeAppState() {
       // If there's no stored state, save the default state
       await saveAppState(initialState)
     }
+
+    // Initialize API settings if they don't exist
+    if (!initialState.settings.apiSettings) {
+      initialState.settings.apiSettings = {
+        apiUrl: "https://api.example.com/twitter-data",
+        apiKey: "",
+        enabled: false
+      }
+      await saveAppState(initialState)
+    }
   } catch (error) {
-    console.error("Error initializing app state:", error)
+    console.error("Failed to initialize app state:", error)
   }
 }
 
@@ -211,6 +231,77 @@ function handleGetUserAnalytics(message, sendResponse) {
   }, 1000) // Simulate data generation delay
 }
 
+/**
+ * Handle save profile data message
+ * @param message Message with profile data
+ * @param sendResponse Response callback
+ */
+async function handleSaveProfileData(message, sendResponse) {
+  try {
+    console.log("[Background] Saving profile data:", message.username)
+
+    const { profileData } = message
+
+    if (!profileData) {
+      sendResponse({ success: false, error: "No profile data provided" })
+      return
+    }
+
+    // Save profile data
+    const response = await saveTwitterProfileData(profileData)
+
+    // Add to recently analyzed users
+    if (response.success) {
+      const state = await getAppState()
+
+      // Check if user is already in the list
+      if (!state.lastAnalyzedUsers.includes(profileData.profile.username)) {
+        // Add to beginning of the list
+        state.lastAnalyzedUsers.unshift(profileData.profile.username)
+
+        // Keep only the last 10 users
+        if (state.lastAnalyzedUsers.length > 10) {
+          state.lastAnalyzedUsers = state.lastAnalyzedUsers.slice(0, 10)
+        }
+
+        await saveAppState(state)
+      }
+    }
+
+    sendResponse(response)
+  } catch (error) {
+    console.error("[Background] Error saving profile data:", error)
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred"
+    })
+  }
+}
+
+/**
+ * Handle get saved profiles message
+ * @param message Message with request
+ * @param sendResponse Response callback
+ */
+async function handleGetSavedProfiles(message, sendResponse) {
+  try {
+    console.log("[Background] Getting saved profiles")
+
+    const state = await getAppState()
+
+    sendResponse({
+      success: true,
+      data: state.lastAnalyzedUsers
+    })
+  } catch (error) {
+    console.error("[Background] Error getting saved profiles:", error)
+    sendResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred"
+    })
+  }
+}
+
 // Extension installation or update event handling
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   if (reason === "install") {
@@ -230,75 +321,72 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 
 // Listen for messages from content scripts and popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Make sure to respond asynchronously
-  ;(async () => {
-    try {
-      // Handle different message types
-      const { type } = message
+  console.log("[Background] Message received:", message.type)
 
-      console.log("Background received message:", type)
+  // Handle different message types
+  switch (message.type) {
+    case "GET_APP_STATE":
+      handleGetAppState(sendResponse)
+      return true
 
-      switch (type) {
-        case "GET_USER_POSTS":
-          handleGetUserPosts(message, sendResponse)
-          break
+    case "UPDATE_SETTINGS":
+      handleUpdateSettings(message, sendResponse)
+      return true
 
-        case "ANALYZE_USER":
-          handleAnalyzeUser(message, sendResponse)
-          break
+    case "GET_USER_POSTS":
+      handleGetUserPosts(message, sendResponse)
+      return true
 
-        case "AUTO_REPLY":
-          handleAutoReply(message, sendResponse)
-          break
+    case "ANALYZE_USER":
+      handleAnalyzeUser(message, sendResponse)
+      return true
 
-        case "LIKE_POST":
-          handleLikePost(message, sendResponse)
-          break
+    case "AUTO_REPLY":
+      handleAutoReply(message, sendResponse)
+      return true
 
-        case "REPOST_TWEET":
-          handleRepostTweet(message, sendResponse)
-          break
+    case "LIKE_POST":
+      handleLikePost(message, sendResponse)
+      return true
 
-        case "GET_USER_ANALYTICS":
-          handleGetUserAnalytics(message, sendResponse)
-          break
+    case "REPOST_TWEET":
+      handleRepostTweet(message, sendResponse)
+      return true
 
-        case "GET_APP_STATE":
-          handleGetAppState(sendResponse)
-          break
+    case "GET_USER_ANALYTICS":
+      handleGetUserAnalytics(message, sendResponse)
+      return true
 
-        case "UPDATE_SETTINGS":
-          await handleUpdateSettings(message, sendResponse)
-          break
+    // Add handlers for scraper functionality
+    case "SAVE_PROFILE_DATA":
+      handleSaveProfileData(message, sendResponse)
+      return true
 
-        case "PING":
-          sendResponse({
-            success: true,
-            message: "Background service is running"
-          })
-          break
+    case "GET_SAVED_PROFILES":
+      handleGetSavedProfiles(message, sendResponse)
+      return true
 
-        case "GET_USER_TWEETS":
-          const { username } = message
-          console.log(`[Background] Getting tweets for ${username}`)
-          setTimeout(() => {
-            const dummyTweets = generateDummyTweets(username, 10)
-            sendResponse({ success: true, tweets: dummyTweets })
-          }, 500)
-          break
+    case "PING":
+      sendResponse({
+        success: true,
+        message: "Background service is running"
+      })
+      return true
 
-        default:
-          console.warn("Unknown message type:", type)
-          sendResponse({ success: false, error: "Unknown message type" })
-      }
-    } catch (error) {
-      console.error("Error handling message:", error)
-      sendResponse({ success: false, error: "Error handling message" })
-    }
-  })()
+    case "GET_USER_TWEETS":
+      const { username } = message
+      console.log(`[Background] Getting tweets for ${username}`)
+      setTimeout(() => {
+        const dummyTweets = generateDummyTweets(username, 10)
+        sendResponse({ success: true, tweets: dummyTweets })
+      }, 500)
+      return true
 
-  // Return true to indicate we will respond asynchronously
-  return true
+    default:
+      console.warn("[Background] Unknown message type:", message.type)
+      sendResponse({ success: false, error: "Unknown message type" })
+      return false
+  }
 })
 
 /**

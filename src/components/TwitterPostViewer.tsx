@@ -9,17 +9,15 @@ import {
   Card,
   CardContent,
   CardHeader,
-  Chip,
   CircularProgress,
   Divider,
-  IconButton,
   Link,
   TextField,
   Typography
 } from "@mui/material"
 import React, { useState } from "react"
 
-import { TwitterPost } from "../types/twitter"
+import type { TwitterPost } from "../types/twitter"
 
 const TwitterPostViewer: React.FC = () => {
   const [username, setUsername] = useState("")

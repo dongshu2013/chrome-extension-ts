@@ -3,6 +3,8 @@ import React, { useEffect, useRef, useState } from "react"
 import { createRoot } from "react-dom/client"
 
 import ExploreAnalytics from "../components/ExploreAnalytics"
+import ProfileScraper from "../components/ProfileScraper"
+import type { TwitterProfileData } from "../types/twitter"
 
 import "./sidebar.css"
 
@@ -89,9 +91,9 @@ function createSidebarContainer() {
 
 // Twitter sidebar component
 function TwitterSidebar({ username }: { username?: string }) {
-  const [activeTab, setActiveTab] = useState<"ai" | "posts" | "settings">(
-    "posts"
-  )
+  const [activeTab, setActiveTab] = useState<
+    "posts" | "ai" | "settings" | "scraper"
+  >("scraper")
   const [currentUser, setCurrentUser] = useState<string>(
     username || getCurrentTwitterUsername()
   )
@@ -104,6 +106,9 @@ function TwitterSidebar({ username }: { username?: string }) {
   const [notification, setNotification] = useState<string | null>(null)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [saving, setSaving] = useState(false)
+  const [scrapedData, setScrapedData] = useState<TwitterProfileData | null>(
+    null
+  )
 
   // 添加引用以监听滚动事件
   const postsContainerRef = useRef<HTMLDivElement>(null)
@@ -1197,6 +1202,31 @@ function TwitterSidebar({ username }: { username?: string }) {
     console.log("已设置侧边栏滚动同步")
   }
 
+  // Handle successful scrape
+  const handleScraperSuccess = (data: TwitterProfileData) => {
+    setScrapedData(data)
+    console.log("Scraped data:", data)
+  }
+
+  // Handle scraper error
+  const handleScraperError = (error: string) => {
+    console.error("Scraper error:", error)
+  }
+
+  // Add a new tab for the scraper
+  const renderScraperTab = () => {
+    return (
+      <div className="twitter-analysis-tab-content">
+        <ProfileScraper
+          username={username || getCurrentUsername()}
+          scrollCount={5}
+          onSuccess={handleScraperSuccess}
+          onError={handleScraperError}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="twitter-analysis-sidebar-inner">
       <div className="sidebar-header">
@@ -1229,17 +1259,11 @@ function TwitterSidebar({ username }: { username?: string }) {
       </div>
 
       <div className="tabs">
-        {/* <button
-          className={activeTab === "ai" ? "active" : ""}
-          onClick={() => setActiveTab("ai")}>
-          <span className="icon icon-ai">🔍</span>
-          Analytics
-        </button> */}
         <button
-          className={activeTab === "posts" ? "active" : ""}
-          onClick={() => setActiveTab("posts")}>
-          <span className="icon icon-posts">📝</span>
-          Posts
+          className={activeTab === "scraper" ? "active" : ""}
+          onClick={() => setActiveTab("scraper")}>
+          <span className="icon icon-scraper">🕵️</span>
+          Profile Scraper
         </button>
         <button
           className={activeTab === "settings" ? "active" : ""}
@@ -1250,11 +1274,7 @@ function TwitterSidebar({ username }: { username?: string }) {
       </div>
 
       <div className="tab-content">
-        {activeTab === "ai" && renderAITab()}
-
-        {activeTab === "posts" && (
-          <div className="posts-tab">{renderPostsTab()}</div>
-        )}
+        {activeTab === "scraper" && renderScraperTab()}
 
         {activeTab === "settings" && (
           <div className="settings-tab">
