@@ -117,8 +117,6 @@ const ExploreAnalytics: React.FC<ExploreAnalyticsProps> = ({ username }) => {
 
   return (
     <div className="analytics-container">
-      <h2 className="analytics-title">User Analysis: @{username}</h2>
-
       {userStats && (
         <div className="stats-card">
           <h3>Account Overview</h3>

@@ -1,5 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo"
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { createRoot } from "react-dom/client"
 
 import ExploreAnalytics from "../components/ExploreAnalytics"
@@ -10,6 +10,7 @@ import "./sidebar.css"
 declare global {
   interface Window {
     twitterAnalysisObserver?: MutationObserver
+    twitterScrollMonitorActive?: boolean
   }
 }
 
@@ -88,12 +89,13 @@ function createSidebarContainer() {
 
 // Twitter sidebar component
 function TwitterSidebar({ username }: { username?: string }) {
-  const [activeTab, setActiveTab] = useState<
-    "analytics" | "posts" | "ai" | "settings"
-  >("analytics")
+  const [activeTab, setActiveTab] = useState<"ai" | "posts" | "settings">(
+    "posts"
+  )
   const [currentUser, setCurrentUser] = useState<string>(
     username || getCurrentTwitterUsername()
   )
+  const [userDisplayName, setUserDisplayName] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
@@ -102,6 +104,9 @@ function TwitterSidebar({ username }: { username?: string }) {
   const [notification, setNotification] = useState<string | null>(null)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [saving, setSaving] = useState(false)
+
+  // 添加引用以监听滚动事件
+  const postsContainerRef = useRef<HTMLDivElement>(null)
 
   // Load settings
   useEffect(() => {
@@ -132,12 +137,58 @@ function TwitterSidebar({ username }: { username?: string }) {
     loadSettingsFromStorage()
   }, [])
 
-  // Get current user's posts
+  // Get user display name from the DOM
   useEffect(() => {
     if (currentUser) {
+      // 获取用户显示名称（昵称）
+      const displayName = getCurrentUserDisplayName()
+      setUserDisplayName(displayName)
       fetchUserPosts(currentUser)
     }
   }, [currentUser])
+
+  // 设置滚动监听
+  useEffect(() => {
+    if (activeTab === "posts") {
+      // 当用户切换到Posts标签时，设置滚动同步
+      if (postsContainerRef.current) {
+        console.log("初始化滚动同步机制...")
+
+        // 设置Twitter页面滚动监听，在用户滚动时自动加载更多内容
+        setupTwitterScrollMonitor(setPosts)
+
+        // 设置侧边栏滚动同步，在滚动到底部时自动加载更多内容
+        setupSidebarScrollSync(postsContainerRef)
+      }
+    }
+  }, [activeTab, postsContainerRef.current])
+
+  // 获取用户显示名称（昵称）
+  function getCurrentUserDisplayName(): string {
+    try {
+      // 尝试从个人资料页获取显示名称
+      const nameElements = document.querySelectorAll(
+        'h1[dir="auto"], h2[dir="auto"]'
+      )
+
+      for (const element of nameElements) {
+        // 查找包含文本但不包含@符号的元素
+        if (
+          element.textContent &&
+          !element.textContent.includes("@") &&
+          element.textContent.trim().length > 0
+        ) {
+          return element.textContent.trim()
+        }
+      }
+
+      // 如果找不到，返回用户名
+      return currentUser
+    } catch (error) {
+      console.error("获取用户昵称时出错:", error)
+      return currentUser
+    }
+  }
 
   // Fetch user posts - with improved DOM scraping
   const fetchUserPosts = async (username: string) => {
@@ -320,7 +371,9 @@ function TwitterSidebar({ username }: { username?: string }) {
         'article[role="article"]',
         'div[data-testid="cellInnerDiv"] article',
         'section[role="region"] article',
-        'div[aria-label*="Timeline"] article'
+        'div[aria-label*="Timeline"] article',
+        // 添加更多匹配选择器，包括带有大量aria-labelledby属性的文章
+        "article[aria-labelledby]"
       ]
 
       // Try each selector until we find tweets
@@ -353,86 +406,31 @@ function TwitterSidebar({ username }: { username?: string }) {
             `a[href*="/${urlUsername}"]`
           )
 
+          // 检查是否有其他可能是用户名的链接
+          let isUserTweet = userLinks && userLinks.length > 0
+
+          // 如果没有找到用户名链接，检查是否有其他标识表明这是用户的推文
+          if (!isUserTweet) {
+            // 尝试查找用户名文本
+            const usernameTextElements =
+              article.querySelectorAll("span.css-1jxf684")
+            for (const element of usernameTextElements) {
+              if (element.textContent?.includes(`@${urlUsername}`)) {
+                isUserTweet = true
+                break
+              }
+            }
+          }
+
           // Skip this article if it doesn't contain the user we're analyzing
-          if (!userLinks || userLinks.length === 0) {
+          if (!isUserTweet) {
             return
           }
 
           console.log(`处理推文 #${index}`)
 
-          // Get tweet text using the specific Twitter testid
-          let tweetText = ""
-          const tweetTextElement = article.querySelector(
-            'div[data-testid="tweetText"]'
-          )
-
-          if (tweetTextElement) {
-            // Modern Twitter has the tweet text in this element
-            // Extract text with better preservation of format
-
-            // Recursive function to extract text from nodes
-            const extractTextFromNode = (node: Node): string => {
-              if (node.nodeType === Node.TEXT_NODE) {
-                return node.textContent || ""
-              }
-
-              if (node.nodeType === Node.ELEMENT_NODE) {
-                const element = node as Element
-
-                // Special handling for links (hashtags, mentions, URLs)
-                if (element.nodeName === "A") {
-                  const href = element.getAttribute("href") || ""
-                  const text = element.textContent || ""
-
-                  if (href.includes("/hashtag/")) {
-                    // This is a hashtag
-                    return text
-                  } else if (href.match(/\/[A-Za-z0-9_]+$/)) {
-                    // This is a mention
-                    return text
-                  } else {
-                    // This is a URL
-                    return text
-                  }
-                }
-
-                // For other elements, process all child nodes
-                let text = ""
-                element.childNodes.forEach((child) => {
-                  text += extractTextFromNode(child)
-                })
-                return text
-              }
-
-              return ""
-            }
-
-            // Extract text from all nodes in the tweet text element
-            tweetTextElement.childNodes.forEach((node) => {
-              tweetText += extractTextFromNode(node)
-            })
-
-            tweetText = tweetText.trim()
-          } else {
-            // Fallback method for older Twitter structure or if the main selector fails
-            const textDivs = article.querySelectorAll(
-              'div[lang], div[dir="auto"]'
-            )
-            textDivs.forEach((div) => {
-              // Skip hidden elements and those that are part of the UI
-              if (
-                div.getAttribute("aria-hidden") !== "true" &&
-                !div.closest('div[role="button"]') &&
-                !div.closest('a[role="link"]')
-              ) {
-                const content = div.textContent?.trim() || ""
-                if (content && tweetText.indexOf(content) === -1) {
-                  tweetText += content + " "
-                }
-              }
-            })
-            tweetText = tweetText.trim()
-          }
+          // 扩展推文文本提取逻辑，支持多种推文结构
+          let tweetText = extractTweetText(article)
 
           if (!tweetText) {
             console.log("没有找到推文文本，跳过")
@@ -468,83 +466,17 @@ function TwitterSidebar({ username }: { username?: string }) {
             tweetId = `temp-${Date.now()}-${index}`
           }
 
-          // Get engagement metrics
-          let likeCount = 0
-          let retweetCount = 0
-          let replyCount = 0
-          let viewCount = 0
-
-          // Find the group containing metrics (Twitter marks these with role="group")
-          const engagementGroup = article.querySelector('div[role="group"]')
-
-          if (engagementGroup) {
-            // Extract metric counts using data-testid attributes
-            // Look for the specific elements with testids
-
-            // Replies
-            const replyElement = engagementGroup.querySelector(
-              'div[data-testid="reply"]'
-            )
-            if (replyElement) {
-              const replyText = replyElement.textContent || ""
-              replyCount = parseTwitterNumber(replyText)
-            }
-
-            // Retweets/Reposts
-            const retweetElement = engagementGroup.querySelector(
-              'div[data-testid="retweet"]'
-            )
-            if (retweetElement) {
-              const retweetText = retweetElement.textContent || ""
-              retweetCount = parseTwitterNumber(retweetText)
-            }
-
-            // Likes
-            const likeElement = engagementGroup.querySelector(
-              'div[data-testid="like"]'
-            )
-            if (likeElement) {
-              const likeText = likeElement.textContent || ""
-              likeCount = parseTwitterNumber(likeText)
-            }
-
-            // Views (if available)
-            const analyticsLink = article.querySelector('a[href*="/analytics"]')
-            if (analyticsLink) {
-              const viewText = analyticsLink.textContent || ""
-              viewCount = parseTwitterNumber(viewText)
-            }
-          }
-
-          // If no metrics found with data-testid, try the fallback method
-          if (likeCount === 0 && retweetCount === 0 && replyCount === 0) {
-            // Fallback: Look for all the numbers within the engagement group
-            const engagementTexts = engagementGroup
-              ? Array.from(engagementGroup.querySelectorAll("span"))
-                  .map((span) => span.textContent || "")
-                  .filter((text) => /^\d+$|^\d+[KkMm]$/.test(text.trim()))
-              : []
-
-            if (engagementTexts.length >= 3) {
-              // Typically the order is replies, retweets, likes
-              replyCount = parseTwitterNumber(engagementTexts[0])
-              retweetCount = parseTwitterNumber(engagementTexts[1])
-              likeCount = parseTwitterNumber(engagementTexts[2])
-            }
-          }
-
-          console.log(
-            `互动数据: 回复=${replyCount}, 转发=${retweetCount}, 点赞=${likeCount}, 浏览=${viewCount}`
-          )
+          // 获取互动数据
+          const engagementData = extractEngagementData(article)
 
           // Add the post to our collection
           scrapedPosts.push({
             id: tweetId,
             text: tweetText,
             timestamp: timestamp,
-            likeCount: likeCount,
-            retweetCount: retweetCount,
-            replyCount: replyCount
+            likeCount: engagementData.likeCount,
+            retweetCount: engagementData.retweetCount,
+            replyCount: engagementData.replyCount
           })
         } catch (error) {
           console.error("处理推文时出错:", error)
@@ -559,23 +491,266 @@ function TwitterSidebar({ username }: { username?: string }) {
     }
   }
 
-  // Helper function to parse Twitter number formats (e.g., "1.5K", "23.4K", "1M")
+  // 提取推文文本的新函数，支持多种推文结构
+  function extractTweetText(article: Element): string {
+    try {
+      // 1. 首先尝试标准的tweetText元素
+      const tweetTextElement = article.querySelector(
+        '[data-testid="tweetText"]'
+      )
+      if (tweetTextElement) {
+        return extractTextWithFormatting(tweetTextElement)
+      }
+
+      // 2. 对于嵌套推文或引用推文，查找推文主体内的文本
+      const quotedTweetTexts = article.querySelectorAll(
+        'div[lang="en"], div[dir="auto"]'
+      )
+      if (quotedTweetTexts && quotedTweetTexts.length > 0) {
+        let fullText = ""
+        quotedTweetTexts.forEach((textDiv) => {
+          // 跳过UI元素和已隐藏的内容
+          if (
+            textDiv.getAttribute("aria-hidden") !== "true" &&
+            !textDiv.closest('div[role="button"]') &&
+            !textDiv.closest('a[role="link"]') &&
+            !textDiv.closest('div[role="group"]') && // 互动数据区域
+            textDiv.textContent?.trim()
+          ) {
+            const extractedText = extractTextWithFormatting(textDiv).trim()
+            if (extractedText && !fullText.includes(extractedText)) {
+              fullText += extractedText + " "
+            }
+          }
+        })
+
+        if (fullText.trim()) {
+          return fullText.trim()
+        }
+      }
+
+      // 3. 如果还是找不到，尝试使用所有可见的dir="auto"元素
+      const allTextElements = article.querySelectorAll(
+        '[dir="auto"]:not([aria-hidden="true"])'
+      )
+      if (allTextElements && allTextElements.length > 0) {
+        let combinedText = ""
+        allTextElements.forEach((element) => {
+          // 检查是否是推文文本而不是UI元素
+          if (
+            element.textContent?.trim() &&
+            !element.closest('div[role="button"]') &&
+            !element.closest('a[role="link"]') &&
+            !element.closest('div[role="group"]')
+          ) {
+            const text = element.textContent.trim()
+            if (!combinedText.includes(text)) {
+              combinedText += text + " "
+            }
+          }
+        })
+        return combinedText.trim()
+      }
+
+      return ""
+    } catch (error) {
+      console.error("提取推文文本时出错:", error)
+      return ""
+    }
+  }
+
+  // 递归提取文本，保留格式
+  function extractTextWithFormatting(element: Element): string {
+    let text = ""
+
+    try {
+      // 递归函数处理节点
+      const processNode = (node: Node): string => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          return node.textContent || ""
+        }
+
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as Element
+
+          // 特殊处理图像表情符号
+          if (element.nodeName === "IMG") {
+            const alt = element.getAttribute("alt")
+            return alt || ""
+          }
+
+          // 特殊处理链接 (hashtags, mentions, URLs)
+          if (element.nodeName === "A") {
+            const href = element.getAttribute("href") || ""
+            const linkText = element.textContent || ""
+
+            if (href.includes("/hashtag/")) {
+              // 这是一个hashtag
+              return linkText
+            } else if (href.match(/\/[A-Za-z0-9_]+$/)) {
+              // 这是一个mention
+              return linkText
+            } else if (href.includes("/search?q=")) {
+              // 这是一个searchable term (如 $HONEY)
+              return linkText
+            } else {
+              // 这是一个URL
+              return linkText
+            }
+          }
+
+          // 对于其他元素，处理所有子节点
+          let childText = ""
+          element.childNodes.forEach((child) => {
+            childText += processNode(child)
+          })
+
+          // 对于块级元素添加适当的空格
+          if (window.getComputedStyle(element).display === "block") {
+            if (!childText.endsWith(" ")) {
+              childText += " "
+            }
+          }
+
+          return childText
+        }
+
+        return ""
+      }
+
+      // 处理元素的所有子节点
+      element.childNodes.forEach((node) => {
+        text += processNode(node)
+      })
+
+      // 清理连续的空格
+      return text.replace(/\s+/g, " ").trim()
+    } catch (error) {
+      console.error("递归提取文本时出错:", error)
+      return element.textContent?.trim() || ""
+    }
+  }
+
+  // 提取推文的互动数据
+  function extractEngagementData(article: Element): {
+    likeCount: number
+    retweetCount: number
+    replyCount: number
+  } {
+    let likeCount = 0
+    let retweetCount = 0
+    let replyCount = 0
+
+    try {
+      // 1. 首先尝试查找data-testid属性标识的互动元素
+      const engagementContainer = article.querySelector('div[role="group"]')
+
+      if (engagementContainer) {
+        // 查找所有互动元素
+        const replyElement = engagementContainer.querySelector(
+          'div[data-testid="reply"]'
+        )
+        const retweetElement = engagementContainer.querySelector(
+          'div[data-testid="retweet"]'
+        )
+        const likeElement = engagementContainer.querySelector(
+          'div[data-testid="like"]'
+        )
+
+        if (replyElement) {
+          replyCount = parseTwitterNumber(replyElement.textContent || "")
+        }
+
+        if (retweetElement) {
+          retweetCount = parseTwitterNumber(retweetElement.textContent || "")
+        }
+
+        if (likeElement) {
+          likeCount = parseTwitterNumber(likeElement.textContent || "")
+        }
+
+        // 如果通过data-testid找不到，尝试使用SVG路径匹配
+        if (likeCount === 0 && retweetCount === 0 && replyCount === 0) {
+          const buttons = Array.from(engagementContainer.children)
+
+          buttons.forEach((button) => {
+            const svgPath =
+              button.querySelector("svg path")?.getAttribute("d") || ""
+            const text = button.textContent || ""
+            const number = parseTwitterNumber(text)
+
+            if (
+              svgPath.includes("M1.751 10c0-4.42") ||
+              button.innerHTML.includes("reply")
+            ) {
+              // 回复图标
+              replyCount = number
+            } else if (
+              svgPath.includes("M4.5 3.88l4.432") ||
+              button.innerHTML.includes("retweet")
+            ) {
+              // 转发图标
+              retweetCount = number
+            } else if (
+              svgPath.includes("M16.697 5.5c-1.222") ||
+              button.innerHTML.includes("like")
+            ) {
+              // 点赞图标
+              likeCount = number
+            }
+          })
+        }
+      }
+
+      // 2. 如果还是找不到，尝试直接查找数字
+      if (likeCount === 0 && retweetCount === 0 && replyCount === 0) {
+        // 查找所有span元素中包含数字的元素
+        const allSpans = article.querySelectorAll("span")
+        const numberSpans = Array.from(allSpans).filter((span) => {
+          const text = span.textContent?.trim() || ""
+          // 只匹配纯数字或带有K/M/B后缀的数字
+          return /^\d+$|^\d+(\.\d+)?[KkMmBb]$/.test(text)
+        })
+
+        // 假设顺序是回复、转发、点赞
+        if (numberSpans.length >= 3) {
+          replyCount = parseTwitterNumber(numberSpans[0].textContent || "")
+          retweetCount = parseTwitterNumber(numberSpans[1].textContent || "")
+          likeCount = parseTwitterNumber(numberSpans[2].textContent || "")
+        }
+      }
+
+      console.log(
+        `互动数据: 回复=${replyCount}, 转发=${retweetCount}, 点赞=${likeCount}`
+      )
+
+      return { likeCount, retweetCount, replyCount }
+    } catch (error) {
+      console.error("提取互动数据时出错:", error)
+      return { likeCount: 0, retweetCount: 0, replyCount: 0 }
+    }
+  }
+
+  // Improved helper function to parse Twitter number formats (e.g., "1.5K", "23.4K", "1M")
   function parseTwitterNumber(text: string): number {
     if (!text) return 0
 
-    // Clean up the text and extract just the number part
+    // Clean up the text
     const cleanText = text.replace(/[,\s]/g, "").trim()
 
-    // Handle cases like "34K", "1.5M", etc.
-    const match = cleanText.match(/^(\d+(\.\d+)?)([KkMmBb])?$/)
+    // 如果文本不包含任何数字，返回0
+    if (!/\d/.test(cleanText)) return 0
+
+    // 提取数字部分和后缀
+    const match = cleanText.match(/(\d+(?:\.\d+)?)([KkMmBb])?/)
     if (!match) return 0
 
     const num = parseFloat(match[1])
     let multiplier = 1
 
-    // Check for suffixes
-    if (match[3]) {
-      const suffix = match[3].toUpperCase()
+    // 处理后缀
+    if (match[2]) {
+      const suffix = match[2].toUpperCase()
       switch (suffix) {
         case "K":
           multiplier = 1000
@@ -868,7 +1043,7 @@ function TwitterSidebar({ username }: { username?: string }) {
             <span>↻</span>
           </button>
         </div>
-        <div className="posts-list">
+        <div className="posts-list" ref={postsContainerRef}>
           {posts.map((post) => (
             <div key={post.id} className="post-item">
               <p className="post-text">{formatTweetText(post.text)}</p>
@@ -889,6 +1064,137 @@ function TwitterSidebar({ username }: { username?: string }) {
         </div>
       </div>
     )
+  }
+
+  // Render AI tab with integrated analytics
+  const renderAITab = () => {
+    return (
+      <div className="ai-tab">
+        {/* 集成分析数据 */}
+        <div className="analytics-section">
+          <h3>User Analysis</h3>
+          <ExploreAnalytics username={currentUser} />
+        </div>
+
+        <div className="ai-section">
+          <h3>AI Analysis</h3>
+          <button
+            className="generate-btn"
+            onClick={generateAIAnalysis}
+            disabled={isGeneratingAI || !posts.length}>
+            {isGeneratingAI ? "Generating..." : "Generate Analysis"}
+          </button>
+
+          {isGeneratingAI ? (
+            <div className="loading-spinner"></div>
+          ) : aiAnalysis ? (
+            <div className="ai-analysis">
+              <h4>Personality Traits</h4>
+              <p>{aiAnalysis}</p>
+            </div>
+          ) : (
+            <p className="no-data">
+              Click "Generate Analysis" to get AI-driven insights.
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Add auto-scroll functionality when Twitter page scrolls
+  function setupTwitterScrollMonitor(
+    setPosts: React.Dispatch<React.SetStateAction<Post[]>>
+  ) {
+    // 检查是否已经设置了滚动监听器
+    if (window["twitterScrollMonitorActive"]) return
+
+    // 标记已经设置了监听器
+    window["twitterScrollMonitorActive"] = true
+
+    let lastScrollY = window.scrollY
+    let lastPostCount = 0
+    let scrollTimer: number | null = null
+
+    // 当用户滚动Twitter页面时触发
+    window.addEventListener("scroll", () => {
+      // 清除之前的定时器
+      if (scrollTimer) {
+        window.clearTimeout(scrollTimer)
+      }
+
+      // 设置新的定时器，滚动停止后执行
+      scrollTimer = window.setTimeout(() => {
+        // 只在用户向下滚动且滚动大于100px时触发
+        if (window.scrollY > lastScrollY + 100) {
+          console.log("检测到向下滚动，尝试抓取新内容...")
+          const newPosts = scrapeUserPostsFromDOM()
+
+          // 只在找到新内容时更新
+          if (newPosts.length > lastPostCount) {
+            console.log(
+              `找到新内容: ${newPosts.length - lastPostCount} 条新推文`
+            )
+            setPosts(newPosts)
+            lastPostCount = newPosts.length
+          }
+        }
+
+        lastScrollY = window.scrollY
+      }, 300) // 等待300ms确保滚动已停止
+    })
+
+    console.log("已设置Twitter滚动监听")
+  }
+
+  // Function to sync sidebar scroll with Twitter page
+  function setupSidebarScrollSync(
+    postsContainerRef: React.RefObject<HTMLDivElement>
+  ) {
+    if (!postsContainerRef.current) return
+
+    // 防止重复设置
+    if (postsContainerRef.current.getAttribute("data-scroll-synced") === "true")
+      return
+    postsContainerRef.current.setAttribute("data-scroll-synced", "true")
+
+    // 侧边栏滚动事件处理
+    let sidebarScrollTimer: number | null = null
+
+    postsContainerRef.current.addEventListener("scroll", () => {
+      if (!postsContainerRef.current) return
+
+      // 清除之前的定时器
+      if (sidebarScrollTimer) {
+        window.clearTimeout(sidebarScrollTimer)
+      }
+
+      // 设置新的定时器，滚动停止后执行
+      sidebarScrollTimer = window.setTimeout(() => {
+        // 检查是否滚动到底部
+        const { scrollTop, scrollHeight, clientHeight } =
+          postsContainerRef.current
+        const scrolledToBottom = scrollTop + clientHeight >= scrollHeight - 50
+
+        if (scrolledToBottom) {
+          console.log("侧边栏滚动到底部，触发Twitter页面滚动")
+
+          // 滚动Twitter页面加载更多内容
+          window.scrollBy({ top: 800, behavior: "smooth" })
+
+          // 等待内容加载
+          setTimeout(() => {
+            const newPosts = scrapeUserPostsFromDOM()
+            // 如果有新内容，自动更新
+            if (newPosts.length > 0) {
+              setPosts(newPosts)
+            }
+          }, 2000)
+        }
+      }, 200)
+    })
+
+    console.log("已设置侧边栏滚动同步")
   }
 
   return (
@@ -914,29 +1220,26 @@ function TwitterSidebar({ username }: { username?: string }) {
       )}
 
       <div className="user-info">
+        {userDisplayName && userDisplayName !== currentUser && (
+          <p className="display-name">{userDisplayName}</p>
+        )}
         <p className="username">
           <span className="username-text">@{currentUser}</span>
         </p>
       </div>
 
       <div className="tabs">
-        <button
-          className={activeTab === "analytics" ? "active" : ""}
-          onClick={() => setActiveTab("analytics")}>
-          <span className="icon icon-analytics">📊</span>
+        {/* <button
+          className={activeTab === "ai" ? "active" : ""}
+          onClick={() => setActiveTab("ai")}>
+          <span className="icon icon-ai">🔍</span>
           Analytics
-        </button>
+        </button> */}
         <button
           className={activeTab === "posts" ? "active" : ""}
           onClick={() => setActiveTab("posts")}>
           <span className="icon icon-posts">📝</span>
           Posts
-        </button>
-        <button
-          className={activeTab === "ai" ? "active" : ""}
-          onClick={() => setActiveTab("ai")}>
-          <span className="icon icon-ai">🤖</span>
-          AI
         </button>
         <button
           className={activeTab === "settings" ? "active" : ""}
@@ -947,40 +1250,10 @@ function TwitterSidebar({ username }: { username?: string }) {
       </div>
 
       <div className="tab-content">
-        {activeTab === "analytics" && (
-          <div className="analytics-tab">
-            <ExploreAnalytics username={currentUser} />
-          </div>
-        )}
+        {activeTab === "ai" && renderAITab()}
 
         {activeTab === "posts" && (
           <div className="posts-tab">{renderPostsTab()}</div>
-        )}
-
-        {activeTab === "ai" && (
-          <div className="ai-tab">
-            <h3>AI Personality Analysis</h3>
-            <button
-              className="generate-btn"
-              onClick={generateAIAnalysis}
-              disabled={isGeneratingAI || !posts.length}>
-              {isGeneratingAI ? "Generating..." : "Generate Analysis"}
-            </button>
-
-            {isGeneratingAI ? (
-              <div className="loading-spinner"></div>
-            ) : aiAnalysis ? (
-              <div className="ai-analysis">
-                <h4>Personality Traits</h4>
-                <p>{aiAnalysis}</p>
-              </div>
-            ) : (
-              <p className="no-data">
-                Click "Generate Analysis" to get AI-powered insights about this
-                user.
-              </p>
-            )}
-          </div>
         )}
 
         {activeTab === "settings" && (
