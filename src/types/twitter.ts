@@ -142,9 +142,7 @@ export interface TwitterPostData {
   replyToId?: string
   replyToUsername?: string
   isRetweet?: boolean
-  originalTweetId?: string
-  originalTweetUsername?: string
-  quoteContent?: string
+  originalPost?: Partial<TwitterPostData> // The original tweet for retweets
   postUrl: string
 }
 

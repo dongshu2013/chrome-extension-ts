@@ -1,8 +1,8 @@
 import {
-  TwitterPostData,
-  TwitterPostMedia,
-  TwitterProfile,
-  TwitterProfileData
+  type TwitterPostData,
+  type TwitterPostMedia,
+  type TwitterProfile,
+  type TwitterProfileData
 } from "../types/twitter"
 
 /**
@@ -342,6 +342,9 @@ export async function scrapeTwitterPosts(
       const postElements = findTweetElements()
       console.log(`Found ${postElements.length} potential post elements`)
 
+      let successCount = 0
+      let errorCount = 0
+
       postElements.forEach((post) => {
         try {
           // Extract tweet ID - look for status links
@@ -370,7 +373,7 @@ export async function scrapeTwitterPosts(
 
           // Extract post text
           const textElement = post.querySelector('[data-testid="tweetText"]')
-          const text = extractTextContent(textElement)
+          let extractedText = extractTextContent(textElement)
           const html = textElement?.innerHTML || ""
 
           // Extract post timestamp
@@ -424,12 +427,12 @@ export async function scrapeTwitterPosts(
           const metrics = extractEngagementMetrics(post)
 
           // Extract media content
-          const media = extractMediaContent(post)
+          let extractedMedia = extractMediaContent(post)
 
           // Extract links, hashtags, and mentions
           const links = extractLinks(textElement)
-          const hashtags = extractHashtags(text)
-          const mentionedUsers = extractMentions(text)
+          const hashtags = extractHashtags(extractedText)
+          const mentionedUsers = extractMentions(extractedText)
 
           // Check if it's a reply
           const isReply = !!post.querySelector('[data-testid="reply"]')
@@ -446,75 +449,335 @@ export async function scrapeTwitterPosts(
             replyToUsername = replyUrl.split("/")[1] || ""
           }
 
-          // Check if it's a retweet or quote
-          const isRetweet = !!post.querySelector(
+          // Check if it's a retweet or quote - IMPROVED LOGIC
+          const repostContext = post.querySelector(
             '[data-testid="socialContext"]'
           )
-          let originalTweetId = ""
-          let originalTweetUsername = ""
-          let quoteContent = ""
+          // Only mark as retweet if we actually find proper repost text indicators
+          const isRetweet = !!(
+            repostContext &&
+            (repostContext.textContent?.includes("reposted") ||
+              repostContext.textContent?.includes("Retweeted"))
+          )
 
-          if (isRetweet) {
-            const retweetElement = post.querySelector(
-              '[data-testid="socialContext"]'
+          // Add detailed logging for debugging retweet detection
+          if (repostContext) {
+            console.log(`Repost context found: "${repostContext.textContent}"`)
+            console.log(`Is this classified as a retweet? ${isRetweet}`)
+          }
+
+          let originalPost: Partial<TwitterPostData> | null = null
+
+          if (
+            repostContext ||
+            post.querySelector(
+              '[aria-labelledby*="id__"] > [role="link"], .css-175oi2r[tabindex="0"][role="link"]'
             )
-            originalTweetUsername =
-              retweetElement?.textContent?.replace("Retweeted", "")?.trim() ||
-              ""
+          ) {
+            // Method 1: Find the "X reposted" text to confirm it's a repost
+            const isReposted =
+              repostContext?.textContent?.includes("reposted") ||
+              repostContext?.textContent?.includes("Retweeted")
 
-            // For quote tweets
-            const quoteElement = post.querySelector(
+            // Extract the original author from repost text
+            let originalAuthor = ""
+            if (isReposted && repostContext) {
+              originalAuthor =
+                repostContext.textContent
+                  ?.replace(/\s+reposted$/i, "")
+                  ?.replace(/\s+Retweeted$/i, "")
+                  ?.trim() || ""
+              console.log(
+                `Extracted original author from repost context: "${originalAuthor}"`
+              )
+            }
+
+            // Method 2: Look for quote content - first attempt using traditional method
+            let quoteElement = post.querySelector(
               '[data-testid="tweetText"] + div'
             )
-            if (quoteElement) {
-              quoteContent = quoteElement.textContent || ""
-              const quoteLinkElement = quoteElement.querySelector(
-                'a[href*="/status/"]'
+
+            // Advanced quote detection: Look for the "Quote" indicator element
+            // This handles the new Twitter UI for quoted tweets
+            if (!quoteElement) {
+              console.log("Looking for quote using advanced methods")
+
+              // Method 2.1: Look for "Quote" text in a dir="ltr" element
+              const quoteIndicators = Array.from(
+                post.querySelectorAll(".css-1jxf684, .css-901oao, .css-175oi2r")
               )
-              const quoteUrl = quoteLinkElement?.getAttribute("href") || ""
-              const quoteMatch = quoteUrl.match(/\/status\/(\d+)/)
-              originalTweetId = quoteMatch ? quoteMatch[1] : ""
+                .filter((el) => (el.textContent || "").trim() === "Quote")
+                .map(
+                  (el) =>
+                    el.closest('.css-175oi2r[role="link"]') ||
+                    el.closest('.css-175oi2r[tabindex="0"]')
+                )
+                .filter(Boolean)
+
+              if (quoteIndicators.length > 0) {
+                console.log("Found quote indicator element")
+                // Get the closest parent that contains the full quote
+                quoteElement =
+                  quoteIndicators[0]?.closest('.css-175oi2r[tabindex="0"]') ||
+                  quoteIndicators[0]?.closest('.css-175oi2r[id*="id__"]')
+              }
+
+              // Method 2.2: If we still don't have a quote element, try to find the embedded tweet
+              if (!quoteElement) {
+                // Look for embedded tweet containers
+                quoteElement = post.querySelector(
+                  '[aria-labelledby*="id__"] > [role="link"], .css-175oi2r[tabindex="0"][role="link"]'
+                )
+              }
+            }
+
+            // Create the original post object if we have a quote element or it's a repost
+            if (quoteElement || isReposted) {
+              console.log("Extracting original post data")
+
+              try {
+                originalPost = {
+                  id: "",
+                  text: "",
+                  createdAt: "",
+                  authorUsername: "",
+                  authorDisplayName: "",
+                  authorProfileUrl: "",
+                  likeCount: 0,
+                  retweetCount: 0,
+                  replyCount: 0
+                }
+
+                // If it's a quoted tweet, extract the content
+                if (quoteElement) {
+                  console.log("Processing as a quoted tweet")
+
+                  // Extract quote content text
+                  const quoteTextElement = quoteElement.querySelector(
+                    '[data-testid="tweetText"]'
+                  )
+                  originalPost.text =
+                    extractTextContent(quoteTextElement) ||
+                    quoteElement.textContent ||
+                    ""
+                  originalPost.html = quoteTextElement?.innerHTML || ""
+
+                  // Extract quote author information
+                  const quoteAuthorElement =
+                    quoteElement.querySelector('[data-testid="User-Name"]') ||
+                    quoteElement.querySelector(
+                      '.css-175oi2r[data-testid^="User-Name"]'
+                    )
+
+                  if (quoteAuthorElement) {
+                    // Extract display name from first span with text
+                    const displayNameElement =
+                      quoteAuthorElement.querySelector('span[dir="auto"]') ||
+                      quoteAuthorElement.querySelector(".css-1jxf684")
+                    originalPost.authorDisplayName =
+                      displayNameElement?.textContent || ""
+
+                    // Extract username (starts with @)
+                    const usernameElement =
+                      quoteAuthorElement.querySelector('span[dir="ltr"]') ||
+                      Array.from(
+                        quoteAuthorElement.querySelectorAll("span")
+                      ).find((span) => (span.textContent || "").startsWith("@"))
+                    originalPost.authorUsername =
+                      usernameElement?.textContent?.replace("@", "") || ""
+
+                    if (originalPost.authorUsername) {
+                      originalPost.authorProfileUrl = `https://twitter.com/${originalPost.authorUsername}`
+                    }
+
+                    // Check if verified
+                    originalPost.isVerified =
+                      !!quoteAuthorElement.querySelector(
+                        'svg[data-testid="icon-verified"]'
+                      )
+                  }
+
+                  // Extract quote URL and ID
+                  const quoteLinkElement = quoteElement.querySelector(
+                    'a[href*="/status/"]'
+                  )
+                  if (quoteLinkElement) {
+                    const quoteUrl = quoteLinkElement.getAttribute("href") || ""
+                    const quoteMatch = quoteUrl.match(/\/status\/(\d+)/)
+                    originalPost.id = quoteMatch ? quoteMatch[1] : ""
+
+                    if (originalPost.id && originalPost.authorUsername) {
+                      originalPost.postUrl = `https://twitter.com/${originalPost.authorUsername}/status/${originalPost.id}`
+                    }
+                  } else {
+                    // Try to find ID from the element attributes
+                    const idAttrs = ["id", "aria-labelledby"]
+                    for (const attr of idAttrs) {
+                      const attrValue = quoteElement.getAttribute(attr) || ""
+                      const idMatch =
+                        attrValue.match(/status\/(\d+)/) ||
+                        attrValue.match(/\d{10,}/)
+                      if (idMatch && idMatch[1]) {
+                        originalPost.id = idMatch[1]
+                        break
+                      }
+                    }
+                  }
+
+                  // Extract quote avatar
+                  const avatarElement = quoteElement.querySelector(
+                    'img[src*="profile_images"]'
+                  )
+                  originalPost.authorAvatar =
+                    avatarElement?.getAttribute("src") || ""
+
+                  // Extract quote media if any
+                  const mediaContainer = quoteElement.querySelector(
+                    '[data-testid="tweetPhoto"], [data-testid="videoPlayer"]'
+                  )
+                  if (mediaContainer) {
+                    originalPost.media = extractMediaContent(mediaContainer)
+                  }
+
+                  // Extract quote timestamp
+                  const timeElement = quoteElement.querySelector("time")
+                  originalPost.createdAt =
+                    timeElement?.getAttribute("datetime") || ""
+
+                  // Try to extract engagement metrics for the quote
+                  try {
+                    const metricElements = quoteElement.querySelectorAll(
+                      '[data-testid="reply"], [data-testid="retweet"], [data-testid="like"], [data-testid="analyticsButton"]'
+                    )
+
+                    metricElements.forEach((el) => {
+                      const testId = el.getAttribute("data-testid")
+                      const countText = el.textContent || "0"
+
+                      if (testId === "reply") {
+                        originalPost!.replyCount = parseTwitterNumber(countText)
+                      } else if (testId === "retweet") {
+                        originalPost!.retweetCount =
+                          parseTwitterNumber(countText)
+                      } else if (testId === "like") {
+                        originalPost!.likeCount = parseTwitterNumber(countText)
+                      } else if (testId === "analyticsButton") {
+                        originalPost!.viewCount = parseTwitterNumber(countText)
+                      }
+                    })
+                  } catch (e) {
+                    console.log("Error extracting quote metrics:", e)
+                  }
+                } else if (isReposted) {
+                  console.log("Processing as a retweet without quote")
+
+                  // For simple retweets (no quote), get the original author from the repost context
+                  originalPost.authorUsername = originalAuthor
+
+                  if (originalPost.authorUsername) {
+                    originalPost.authorProfileUrl = `https://twitter.com/${originalPost.authorUsername}`
+
+                    // For simple retweets, the main tweet content is actually the original tweet
+                    originalPost.text = extractedText
+                    originalPost.html = html
+                    originalPost.createdAt = createdAt
+                    originalPost.likeCount = metrics.likeCount
+                    originalPost.retweetCount = metrics.retweetCount
+                    originalPost.replyCount = metrics.replyCount
+                    originalPost.viewCount = metrics.viewCount
+                    originalPost.media = [...extractedMedia] // Use spread to create a copy
+
+                    // The ID might be the same since it's just a retweet
+                    originalPost.id = id
+                    originalPost.postUrl = postUrl
+
+                    // In this case, the original author data needs additional extraction
+                    // since the container tweet is showing the repost
+                    // We need to look for the actual original author information
+                    // If we couldn't get more specific information, use what we have
+                    originalPost.authorDisplayName =
+                      originalAuthor || authorDisplayName
+
+                    // Try to extract more author information if possible
+                    const authorElements = post.querySelectorAll(
+                      '[data-testid="User-Name"]'
+                    )
+                    // Skip the first author element (which is the retweeter)
+                    if (authorElements.length > 1) {
+                      const originalAuthorElement = authorElements[1]
+                      // Extract display name from second author element (original author)
+                      const displayNameElement =
+                        originalAuthorElement.querySelector('span[dir="auto"]')
+                      if (displayNameElement) {
+                        originalPost.authorDisplayName =
+                          displayNameElement.textContent ||
+                          originalPost.authorDisplayName
+                      }
+                    }
+
+                    // The current tweet becomes just a container for the original
+                    extractedText = "" // Clear the container tweet content since it's moved to original
+                    extractedMedia = [] // Clear media since it's moved to original
+                  }
+                }
+
+                console.log(
+                  `Extracted original post by @${originalPost.authorUsername}: ${originalPost.text?.substring(0, 30)}...`
+                )
+              } catch (error) {
+                console.error("Error extracting original post data:", error)
+                // Reset original post if we failed to extract it properly
+                originalPost = null
+              }
             }
           }
 
-          // Create post data object
-          const postData: TwitterPostData = {
-            id,
-            text,
-            html,
-            createdAt,
-            authorUsername,
-            authorDisplayName,
-            authorProfileUrl,
-            authorAvatar,
-            isVerified,
-            likeCount: metrics.likeCount,
-            retweetCount: metrics.retweetCount,
-            replyCount: metrics.replyCount,
-            viewCount: metrics.viewCount,
-            media,
-            links,
-            hashtags,
-            mentionedUsers,
-            isReply,
-            replyToId,
-            replyToUsername,
-            isRetweet,
-            originalTweetId,
-            originalTweetUsername,
-            quoteContent,
-            postUrl:
-              postUrl || `https://twitter.com/${authorUsername}/status/${id}`
-          }
+          try {
+            // Create post data object
+            const postData: TwitterPostData = {
+              id,
+              text: extractedText,
+              html,
+              createdAt,
+              authorUsername,
+              authorDisplayName,
+              authorProfileUrl,
+              authorAvatar,
+              isVerified,
+              likeCount: metrics.likeCount,
+              retweetCount: metrics.retweetCount,
+              replyCount: metrics.replyCount,
+              viewCount: metrics.viewCount,
+              media: extractedMedia,
+              links,
+              hashtags,
+              mentionedUsers,
+              isReply,
+              replyToId,
+              replyToUsername,
+              isRetweet, // Now this will be true only for genuine retweets
+              originalPost: originalPost || undefined,
+              postUrl:
+                postUrl || `https://twitter.com/${authorUsername}/status/${id}`
+            }
 
-          posts.push(postData)
-          console.log(`Added post ID: ${id}`)
+            posts.push(postData)
+            console.log(
+              `Added post ID: ${id}, isRetweet: ${isRetweet}, type: ${isRetweet ? "Repost" : isReply ? "Reply" : "Tweet"}`
+            )
+          } catch (error) {
+            console.error("Error creating post data object:", error)
+          }
         } catch (error) {
+          errorCount++
           console.error("Error extracting post data:", error)
         }
       })
 
-      console.log(`Total posts extracted: ${posts.length}`)
+      console.log(
+        `Successfully extracted ${successCount} posts, failed to extract ${errorCount} posts`
+      )
+      console.log(`Total posts extracted so far: ${posts.length}`)
     }
 
     // Extract initial posts

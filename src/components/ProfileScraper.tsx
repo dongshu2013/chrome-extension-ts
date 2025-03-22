@@ -570,6 +570,7 @@ const ProfileScraper: React.FC<ProfileScraperProps> = ({
                       <TableCell>Retweets</TableCell>
                       <TableCell>Replies</TableCell>
                       <TableCell>Reads</TableCell>
+                      <TableCell>Type</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -580,12 +581,46 @@ const ProfileScraper: React.FC<ProfileScraperProps> = ({
                         <TableCell>
                           {post.text.substring(0, 50)}
                           {post.text.length > 50 ? "..." : ""}
+                          {post.originalPost && (
+                            <Box
+                              sx={{
+                                ml: 1,
+                                mt: 1,
+                                p: 1,
+                                bgcolor: "#f5f5f5",
+                                borderLeft: "2px solid #805ad5"
+                              }}>
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                fontWeight="bold">
+                                {post.originalPost.authorUsername ===
+                                profileData?.profile.username
+                                  ? "Original post"
+                                  : `@${post.originalPost.authorUsername}'s post`}
+                              </Typography>
+                              <Typography variant="caption">
+                                {post.originalPost.text?.substring(0, 50)}
+                                {post.originalPost.text &&
+                                post.originalPost.text.length > 50
+                                  ? "..."
+                                  : ""}
+                              </Typography>
+                            </Box>
+                          )}
                         </TableCell>
                         <TableCell>{formatNumber(post.likeCount)}</TableCell>
                         <TableCell>{formatNumber(post.retweetCount)}</TableCell>
                         <TableCell>{formatNumber(post.replyCount)}</TableCell>
                         <TableCell>
                           {post.viewCount ? formatNumber(post.viewCount) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {post.isRetweet
+                            ? "Repost"
+                            : post.isReply
+                              ? "Reply"
+                              : "Tweet"}
                         </TableCell>
                       </TableRow>
                     ))}
