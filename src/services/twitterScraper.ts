@@ -434,8 +434,30 @@ export async function scrapeTwitterPosts(
           const hashtags = extractHashtags(extractedText)
           const mentionedUsers = extractMentions(extractedText)
 
-          // Check if it's a reply
-          const isReply = !!post.querySelector('[data-testid="reply"]')
+          // Check if it's a reply - IMPROVED LOGIC
+          const replyContext = post.querySelector(
+            '[data-testid="socialContext"]'
+          )
+          const isReply = !!(
+            // Check if there's a social context indicating it's a reply
+            (
+              (replyContext &&
+                (replyContext.textContent?.includes("replied to") ||
+                  replyContext.textContent?.includes("回复") ||
+                  replyContext.textContent
+                    ?.toLowerCase()
+                    .includes("replying to"))) ||
+              // Or check for in-reply-to context
+              post.querySelector('[data-testid="inReplyToText"]')
+            )
+          )
+
+          // Add detailed logging for debugging reply detection
+          if (replyContext) {
+            console.log(`Reply context found: "${replyContext.textContent}"`)
+            console.log(`Is this classified as a reply? ${isReply}`)
+          }
+
           let replyToId = ""
           let replyToUsername = ""
 
