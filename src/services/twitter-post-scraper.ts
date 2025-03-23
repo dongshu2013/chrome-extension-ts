@@ -516,3 +516,14 @@ ${html.substring(0, Math.min(html.length, 100000))}` // Limit HTML length
 
 // Export singleton instance
 export const twitterPostScraper = new TwitterPostScraperService()
+
+/**
+ * Twitter Post Scraper Module
+ * Re-exports from modular implementation
+ */
+
+export {
+  scrapeTwitterProfile,
+  scrapeTwitterPosts,
+  scrapeTwitterProfileData
+} from "./twitter-scraper/index"

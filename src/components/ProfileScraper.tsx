@@ -1,6 +1,5 @@
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import SaveIcon from "@mui/icons-material/Save"
 import {
   Accordion,
   AccordionDetails,
@@ -12,6 +11,7 @@ import {
   CircularProgress,
   Divider,
   LinearProgress,
+  Link,
   Paper,
   Stack,
   Table,
@@ -24,7 +24,7 @@ import {
 } from "@mui/material"
 import React, { useState } from "react"
 
-import { scrapeTwitterProfileData } from "../services/twitterScraper"
+import { scrapeTwitterProfileData } from "../services/twitter-scraper/index"
 import type { TwitterProfileData } from "../types/twitter"
 
 interface ProfileScraperProps {
@@ -575,12 +575,68 @@ const ProfileScraper: React.FC<ProfileScraperProps> = ({
                   </TableHead>
                   <TableBody>
                     {profileData?.posts.map((post) => (
-                      <TableRow key={post.id}>
-                        <TableCell>{post.id.substring(0, 8)}...</TableCell>
+                      <TableRow
+                        key={post.id}
+                        sx={
+                          post.isThreadPart
+                            ? {
+                                backgroundColor: "rgba(25, 118, 210, 0.04)",
+                                "&:hover": {
+                                  backgroundColor: "rgba(25, 118, 210, 0.08)"
+                                }
+                              }
+                            : undefined
+                        }>
+                        <TableCell>
+                          {post.id.substring(0, 8)}...
+                          {post.threadPosition && post.threadCount && (
+                            <Typography
+                              variant="caption"
+                              display="block"
+                              color="primary"
+                              sx={{ mt: 0.5 }}>
+                              {post.threadPosition}/{post.threadCount}
+                            </Typography>
+                          )}
+                        </TableCell>
                         <TableCell>{formatDate(post.createdAt)}</TableCell>
                         <TableCell>
+                          {post.isThreadPart && post.threadIndicator && (
+                            <Typography
+                              variant="caption"
+                              display="block"
+                              color="primary"
+                              fontWeight="bold"
+                              sx={{ mb: 0.5 }}>
+                              {post.threadIndicator}
+                            </Typography>
+                          )}
+
                           {post.text.substring(0, 50)}
                           {post.text.length > 50 ? "..." : ""}
+
+                          {post.isThreadPart &&
+                            (post.previousThreadId || post.nextThreadId) && (
+                              <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
+                                {post.previousThreadId && (
+                                  <Link
+                                    href={`https://twitter.com/i/status/${post.previousThreadId}`}
+                                    target="_blank"
+                                    sx={{ fontSize: "0.7rem" }}>
+                                    ← 前一条
+                                  </Link>
+                                )}
+                                {post.nextThreadId && (
+                                  <Link
+                                    href={`https://twitter.com/i/status/${post.nextThreadId}`}
+                                    target="_blank"
+                                    sx={{ fontSize: "0.7rem" }}>
+                                    后一条 →
+                                  </Link>
+                                )}
+                              </Box>
+                            )}
+
                           {post.originalPost && (
                             <Box
                               sx={{
@@ -620,7 +676,9 @@ const ProfileScraper: React.FC<ProfileScraperProps> = ({
                             ? "Repost"
                             : post.isReply
                               ? "Reply"
-                              : "Tweet"}
+                              : post.isThreadPart
+                                ? "Thread"
+                                : "Tweet"}
                         </TableCell>
                       </TableRow>
                     ))}

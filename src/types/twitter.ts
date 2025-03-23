@@ -142,6 +142,16 @@ export interface TwitterPostData {
   replyToId?: string
   replyToUsername?: string
   isRetweet?: boolean
+  isThreadPart?: boolean // 是否为推文串的一部分
+  threadIndicator?: string // 推文串的指示符，如 "1/5", "线程", "🧵" 等
+
+  // 推文串关联属性
+  threadPosition?: number // 在推文串中的位置（如：1/5 中的1）
+  threadCount?: number // 推文串的总数（如：1/5 中的5）
+  previousThreadId?: string // 前一条推文ID（在推文串中）
+  nextThreadId?: string // 后一条推文ID（在推文串中）
+  threadHeadId?: string // 推文串首条推文ID
+
   originalPost?: Partial<TwitterPostData> // The original tweet for retweets
   postUrl: string
 }

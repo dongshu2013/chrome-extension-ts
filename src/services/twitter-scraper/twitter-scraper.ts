@@ -1,4 +1,4 @@
-import type { TwitterSearchUser } from "../types/twitter"
+import type { TwitterSearchUser } from "../../types/twitter"
 
 /**
  * Twitter爬虫服务 - 负责从Twitter网页爬取用户数据
