@@ -67,7 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
     temperature: 0.7,
     maxTokens: 2000,
     systemPrompt:
-      "你是一个专业的Twitter用户分析助手，善于分析用户的性格特征、兴趣爱好和沟通风格。请根据用户的推文内容进行分析并提供有用的见解。"
+      "You are a professional Twitter user analysis assistant, good at analyzing the personality traits, interests and communication style of users. Please analyze the user's tweets and provide useful insights."
   },
 
   // 回复设置

@@ -107,7 +107,7 @@ const ProfileScraper: React.FC<ProfileScraperProps> = ({
             // Keep the scraped status, don't go to full error
             setStatus("scraped")
             setMessage(
-              `Data scraped successfully, but failed to save to database.`
+                `Data scraped successfully, but failed to save to database.`
             )
             setIsLoading(false)
             return

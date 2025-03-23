@@ -1,4 +1,4 @@
-import { type TwitterPostMedia } from "../../../types/twitter"
+import type { TwitterPostMedia } from "../../../types/twitter"
 import { parseTwitterNumber } from "../utils/parsers"
 
 /**

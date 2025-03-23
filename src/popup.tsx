@@ -39,6 +39,8 @@ function Popup() {
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [isOnTwitterPost, setIsOnTwitterPost] = useState(false)
+  const [currentUrl, setCurrentUrl] = useState("")
 
   // Add FontAwesome
   useEffect(() => {
@@ -60,10 +62,15 @@ function Popup() {
           currentWindow: true
         })
         const url = tabs[0].url || ""
+        setCurrentUrl(url)
 
         // Check if this is a Twitter page
         const isTwitter = await isTwitterPage(url)
         log(`Is Twitter page: ${isTwitter}`)
+
+        // Check if we're on a Twitter post
+        const isPost = url.includes("/status/")
+        setIsOnTwitterPost(isPost)
 
         if (isTwitter) {
           // Get username from URL
@@ -78,7 +85,14 @@ function Popup() {
               setUsername(usernameFromParam)
               setConnected(true)
             } else {
-              setError("Please navigate to a Twitter user profile to analyze.")
+              if (isPost) {
+                // On a post page, we're still connected
+                setConnected(true)
+              } else {
+                setError(
+                  "Please navigate to a Twitter user profile to analyze."
+                )
+              }
             }
           }
         } else {
@@ -128,6 +142,34 @@ function Popup() {
     chrome.tabs.create({ url: "https://twitter.com" })
   }
 
+  // Open Twitter Post Detail in sidebar
+  const sendOpenPostDetailTab = async () => {
+    log("Opening Post Detail in sidebar")
+    try {
+      const tabs = await chrome.tabs.query({
+        active: true,
+        currentWindow: true
+      })
+      const tabId = tabs[0]?.id
+
+      if (!tabId) throw new Error("No active tab found")
+
+      await chrome.tabs.sendMessage(tabId, {
+        action: "OPEN_SIDEBAR_POST_DETAIL",
+        postId: extractPostId(currentUrl)
+      })
+    } catch (err) {
+      logError("Failed to open sidebar post detail", err)
+      setError("Failed to open sidebar. Please refresh the page and try again.")
+    }
+  }
+
+  // Extract post ID from URL
+  const extractPostId = (url: string): string | null => {
+    const match = url.match(/status\/(\d+)/)
+    return match ? match[1] : null
+  }
+
   // If loading
   if (loading) {
     return (
@@ -165,6 +207,7 @@ function Popup() {
         </div>
       </div>
 
+      {/* Analytics Card */}
       <div className="card">
         <div className="card-content">
           <div className="card-header">
@@ -178,9 +221,43 @@ function Popup() {
         </div>
         <hr className="divider" />
         <div className="card-actions">
-          <button className="btn btn-primary" onClick={openAnalytics}>
+          <button
+            className="btn btn-primary"
+            onClick={openAnalytics}
+            disabled={!username}>
             <span className="icon-stats"></span>
             View User Analytics
+          </button>
+        </div>
+      </div>
+
+      {/* Post Detail Card */}
+      <div className="card">
+        <div className="card-content">
+          <div className="card-header">
+            <i
+              className="fas fa-comment-alt"
+              style={{ marginRight: "8px" }}></i>
+            <h2 className="card-title">Post Scraper</h2>
+          </div>
+          {isOnTwitterPost && (
+            <p className="post-info">
+              <i
+                className="fas fa-check-circle"
+                style={{ color: "green", marginRight: "4px" }}></i>
+              Currently on a tweet
+            </p>
+          )}
+          <p className="card-description">
+            Extract detailed tweet information including comments, likes,
+            reposts and media
+          </p>
+        </div>
+        <hr className="divider" />
+        <div className="card-actions">
+          <button className="btn btn-primary" onClick={sendOpenPostDetailTab}>
+            <i className="fas fa-search" style={{ marginRight: "8px" }}></i>
+            Scrape Post Details
           </button>
         </div>
       </div>

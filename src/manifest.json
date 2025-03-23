@@ -9,6 +9,10 @@
     "activeTab",
     "scripting"
   ],
+  "host_permissions": [
+    "*://*.twitter.com/*",
+    "*://*.x.com/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -39,7 +43,8 @@
       ],
       "matches": [
         "*://*.twitter.com/*",
-        "*://*.x.com/*"
+        "*://*.x.com/*",
+        "<all_urls>"
       ]
     }
   ]

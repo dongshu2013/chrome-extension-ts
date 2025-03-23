@@ -1,7 +1,4 @@
-import {
-  type TwitterPostData,
-  type TwitterPostMedia
-} from "../../../types/twitter"
+import { type TwitterPostData } from "../../../types/twitter"
 import {
   extractEngagementMetrics,
   extractHashtags,
@@ -15,99 +12,103 @@ import {
  * Scrolls down the Twitter timeline
  * Implements multiple strategies to ensure scrolling works
  */
-export function scrollDown(): void {
-  try {
-    // Get the current scroll position before scrolling
-    const beforeScrollHeight = document.documentElement.scrollHeight
-    const beforeScrollTop = document.documentElement.scrollTop
+export function scrollDown(count: number = 1): void {
+  for (let i = 0; i < count; i++) {
+    try {
+      // Get the current scroll position before scrolling
+      const beforeScrollTop = document.documentElement.scrollTop
 
-    // 尝试多种滚动策略，从温和到激进
-    // 1. 标准滚动 - 滚动到页面底部
-    window.scrollTo(0, document.body.scrollHeight)
+      // 尝试多种滚动策略，从温和到激进
+      // 1. 标准滚动 - 滚动到页面底部
+      window.scrollTo(0, document.body.scrollHeight)
 
-    // 记录滚动状态
-    console.log(
-      `初始滚动：从 ${beforeScrollTop} 到 ${document.documentElement.scrollTop}, 文档高度: ${document.documentElement.scrollHeight}`
-    )
+      // 记录滚动状态
+      console.log(
+        `初始滚动：从 ${beforeScrollTop} 到 ${document.documentElement.scrollTop}`
+      )
 
-    // 2. 如果滚动不足，尝试替代方法
-    if (document.documentElement.scrollTop - beforeScrollTop < 300) {
-      console.log("标准滚动效果不足，尝试替代方法")
+      // 2. 如果滚动不足，尝试替代方法
+      if (document.documentElement.scrollTop - beforeScrollTop < 300) {
+        console.log("标准滚动效果不足，尝试替代方法")
 
-      // 2.1 尝试找出主时间线元素进行滚动
-      const timelineSelectors = [
-        '[data-testid="primaryColumn"]',
-        'main[role="main"]',
-        'div[aria-label*="Timeline"]',
-        'section[role="region"]',
-        'div[data-testid="sidebarColumn"] + div' // 主列常在侧边栏列之后
-      ]
+        // 2.1 尝试找出主时间线元素进行滚动
+        const timelineSelectors = [
+          '[data-testid="primaryColumn"]',
+          'main[role="main"]',
+          'div[aria-label*="Timeline"]',
+          'section[role="region"]',
+          'div[data-testid="sidebarColumn"] + div' // 主列常在侧边栏列之后
+        ]
 
-      let scrollApplied = false
-      for (const selector of timelineSelectors) {
-        const timeline = document.querySelector(selector)
-        if (timeline) {
-          try {
-            // 尝试滚动此元素
-            timeline.scrollTop = timeline.scrollHeight
-            console.log(`滚动了选择器为 ${selector} 的时间线元素`)
-            scrollApplied = true
-            break
-          } catch (e) {
-            console.error(`尝试滚动 ${selector} 时出错:`, e)
+        let scrollApplied = false
+        for (const selector of timelineSelectors) {
+          const timeline = document.querySelector(selector)
+          if (timeline) {
+            try {
+              // 尝试滚动此元素
+              timeline.scrollTop = timeline.scrollHeight
+              console.log(`滚动了选择器为 ${selector} 的时间线元素`)
+              scrollApplied = true
+              break
+            } catch (e) {
+              console.error(`尝试滚动 ${selector} 时出错:`, e)
+            }
           }
+        }
+
+        // 2.2 如果没有找到可滚动元素，使用更激进的滚动
+        if (!scrollApplied) {
+          console.log("未找到可滚动的时间线元素，使用页面滚动替代")
+          // 使用大滚动量
+          window.scrollBy(0, 1500)
         }
       }
 
-      // 2.2 如果没有找到可滚动元素，使用更激进的滚动
-      if (!scrollApplied) {
-        console.log("未找到可滚动的时间线元素，使用页面滚动替代")
-        // 使用大滚动量
-        window.scrollBy(0, 1500)
-      }
-    }
+      // 3. 额外的滚动策略 - "抖动"滚动，有时可以触发加载器
+      setTimeout(() => {
+        try {
+          // 向上滚动一点再向下滚动，这有时能触发懒加载
+          window.scrollBy(0, -100)
+          setTimeout(() => window.scrollBy(0, 300), 200)
+        } catch (e) {
+          console.error("抖动滚动时出错:", e)
+        }
+      }, 500)
 
-    // 3. 额外的滚动策略 - "抖动"滚动，有时可以触发加载器
-    setTimeout(() => {
-      try {
-        // 向上滚动一点再向下滚动，这有时能触发懒加载
-        window.scrollBy(0, -100)
-        setTimeout(() => window.scrollBy(0, 300), 200)
-      } catch (e) {
-        console.error("抖动滚动时出错:", e)
-      }
-    }, 500)
-
-    // 4. 如果页面有无限滚动特性，尝试触发交互刷新
-    setTimeout(() => {
-      try {
-        // 模拟用户交互，有助于触发某些懒加载机制
-        const potentialTriggers = document.querySelectorAll(
-          'div[role="button"]:not([aria-disabled="true"])'
-        )
-        if (potentialTriggers.length > 0) {
-          // 找到页面底部附近的按钮
-          const viewportHeight = window.innerHeight
-          const bottomTriggers = Array.from(potentialTriggers).filter((el) => {
-            const rect = el.getBoundingClientRect()
-            return (
-              rect.top > viewportHeight * 0.7 && rect.top < viewportHeight * 1.2
+      // 4. 如果页面有无限滚动特性，尝试触发交互刷新
+      setTimeout(() => {
+        try {
+          // 模拟用户交互，有助于触发某些懒加载机制
+          const potentialTriggers = document.querySelectorAll(
+            'div[role="button"]:not([aria-disabled="true"])'
+          )
+          if (potentialTriggers.length > 0) {
+            // 找到页面底部附近的按钮
+            const viewportHeight = window.innerHeight
+            const bottomTriggers = Array.from(potentialTriggers).filter(
+              (el) => {
+                const rect = el.getBoundingClientRect()
+                return (
+                  rect.top > viewportHeight * 0.7 &&
+                  rect.top < viewportHeight * 1.2
+                )
+              }
             )
-          })
 
-          if (bottomTriggers.length > 0) {
-            // 不实际点击，只记录找到了
-            console.log(`发现了 ${bottomTriggers.length} 个可能的加载触发器`)
+            if (bottomTriggers.length > 0) {
+              // 不实际点击，只记录找到了
+              console.log(`发现了 ${bottomTriggers.length} 个可能的加载触发器`)
+            }
           }
+        } catch (e) {
+          console.error("尝试查找加载触发器时出错:", e)
         }
-      } catch (e) {
-        console.error("尝试查找加载触发器时出错:", e)
-      }
-    }, 1000)
-  } catch (e) {
-    console.error("滚动过程中发生错误:", e)
-    // 回退到简单滚动
-    window.scrollTo(0, document.body.scrollHeight)
+      }, 1000)
+    } catch (e) {
+      console.error("滚动过程中发生错误:", e)
+      // 回退到简单滚动
+      window.scrollTo(0, document.body.scrollHeight)
+    }
   }
 }
 

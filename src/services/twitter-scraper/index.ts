@@ -10,10 +10,18 @@ export {
   scrapeTwitterProfileData
 } from "./core/scraper"
 
+// Export the post detail scraper
+export {
+  scrapeTwitterPostDetail,
+  openAndScrapeTwitterPostDetail
+} from "./core/detail-scraper"
+
 // Re-export types
 export type {
   TwitterProfile,
   TwitterPostData,
   TwitterPostMedia,
-  TwitterProfileData
+  TwitterProfileData,
+  TwitterComment,
+  TwitterPostDetail
 } from "../../types/twitter"

@@ -44,7 +44,7 @@ class TwitterScraperService {
 
       // 在页面中执行脚本来爬取用户数据
       if (!tab.id) {
-        throw new Error("标签页ID无效")
+        throw new Error("invalid tab id")
       }
 
       const results = await chrome.scripting.executeScript({

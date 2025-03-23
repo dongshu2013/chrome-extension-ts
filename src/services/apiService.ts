@@ -1,4 +1,4 @@
-import { TwitterProfileData } from "../types/twitter"
+import type { TwitterProfileData } from "../types/twitter"
 
 // Define the API endpoint URL - this should be configurable
 let API_BASE_URL = "https://api.example.com/twitter-data"

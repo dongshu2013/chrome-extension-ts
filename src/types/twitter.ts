@@ -164,3 +164,69 @@ export interface TwitterProfileData {
   posts: TwitterPostData[]
   scrapedAt: number // Timestamp when the data was scraped
 }
+
+/**
+ * Twitter comment interface
+ */
+export interface TwitterComment {
+  id: string
+  text: string
+  html?: string
+  createdAt: string
+  authorUsername: string
+  authorDisplayName: string
+  authorProfileUrl: string
+  authorAvatar?: string
+  isVerified?: boolean
+  likeCount: number
+  retweetCount: number
+  replyCount: number
+  viewCount?: number
+  media?: TwitterPostMedia[]
+  isReply?: boolean
+  replyToId?: string
+  postUrl: string
+}
+
+/**
+ * Detailed Twitter post interface with comments and additional metrics
+ */
+export interface TwitterPostDetail extends TwitterPostData {
+  comments: TwitterComment[] // List of comments to this post
+  commentsFetched: boolean // Whether comments have been fetched
+  commentCount: number // Total number of comments (may be more than fetched)
+  detailedMedia?: {
+    images: {
+      url: string
+      altText?: string
+      width?: number
+      height?: number
+    }[]
+    videos: {
+      url: string
+      thumbnailUrl?: string
+      duration?: string
+      width?: number
+      height?: number
+      views?: number
+    }[]
+    gifs: {
+      url: string
+      thumbnailUrl?: string
+      width?: number
+      height?: number
+    }[]
+    audio?: {
+      url: string
+      duration?: string
+    }[]
+  }
+  analytics?: {
+    impressions?: number
+    engagements?: number
+    profileClicks?: number
+    linkClicks?: number
+    detailExpands?: number
+    mediaViews?: number
+  }
+}

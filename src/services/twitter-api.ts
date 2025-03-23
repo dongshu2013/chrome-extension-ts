@@ -1,4 +1,7 @@
-import { TwitterApiSearchResponse, TwitterSearchUser } from "../types/twitter"
+import type {
+  TwitterApiSearchResponse,
+  TwitterSearchUser
+} from "../types/twitter"
 
 /**
  * Twitter API服务类 - 处理与Twitter API的交互
@@ -76,10 +79,11 @@ class TwitterApiService {
     return apiResponse.data.map((user) => ({
       id: user.id,
       username: user.username,
-      fullName: user.name,
-      avatarUrl: user.profile_image_url || "",
+      displayName: user.name,
+      profile_image_url: user.profile_image_url || "",
       bio: user.description || "",
-      isVerified: user.verified || false,
+      verified: user.verified || false,
+      profileUrl: `https://twitter.com/${user.username}`,
       followersCount: user.public_metrics?.followers_count || 0,
       followingCount: user.public_metrics?.following_count || 0
     }))
