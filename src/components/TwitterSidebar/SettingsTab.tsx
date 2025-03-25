@@ -46,7 +46,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
   return (
     <div className="settings-tab">
       {/* AI Settings */}
-      <div className="settings-section">
+      {/* <div className="settings-section">
         <div className="settings-section-title">AI Settings</div>
         <div className="settings-content">
           <div className="settings-form-group">
@@ -113,7 +113,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
             </select>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* AI Parser Settings for DOM parsing */}
       <div className="settings-section">
@@ -207,7 +207,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* Interface Settings */}
-      <div className="settings-section">
+      {/* <div className="settings-section">
         <div className="settings-section-title">Interface Settings</div>
         <div className="settings-content">
           <div className="settings-form-group">
@@ -262,7 +262,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
             </p>
           </div>
         </div>
-      </div>
+      </div> */}
       {/* Actions */}
       <div className="settings-actions">
         <button className="btn btn-reset" onClick={resetSettings}>
