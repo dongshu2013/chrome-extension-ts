@@ -4,6 +4,8 @@ import { Storage } from "@plasmohq/storage"
 
 import "./style.css"
 
+import type { AppState } from "./types/app"
+
 const DEFAULT_SETTINGS = {
   // UI settings
   uiSettings: {
@@ -50,6 +52,13 @@ const DEFAULT_SETTINGS = {
       "You are a professional Twitter user analysis assistant, skilled at analyzing users' personality traits, interests, and communication styles. Please analyze the user's tweets and provide useful insights."
   },
 
+  // AI Parser settings for DOM parsing
+  aiParserSettings: {
+    enabled: false,
+    apiKey: "",
+    modelId: "google/gemma-3-27b-it:free"
+  },
+
   // Reply settings
   replySettings: {
     remindViewDetails: false,
@@ -73,7 +82,7 @@ function OptionsPage() {
     const loadSettings = async () => {
       try {
         const storage = new Storage()
-        const appState = await storage.get("appState")
+        const appState: AppState = await storage.get("appState")
 
         if (appState?.settings) {
           // Merge with default settings to ensure all fields exist
@@ -84,6 +93,11 @@ function OptionsPage() {
             apiSettings: {
               ...DEFAULT_SETTINGS.apiSettings,
               ...(appState.settings.apiSettings || {})
+            },
+            // Ensure AI parser settings exist
+            aiParserSettings: {
+              ...DEFAULT_SETTINGS.aiParserSettings,
+              ...(appState.settings.aiParserSettings || {})
             }
           })
         }
@@ -377,6 +391,68 @@ function OptionsPage() {
                 }
                 placeholder="Enter your API Key"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* AI Parser Settings */}
+        <div className="options-section">
+          <h2>AI DOM Parser Settings</h2>
+          <p className="section-description">
+            Configure settings for AI-based DOM parsing when traditional
+            scrapers fail.
+          </p>
+          <div className="options-form">
+            <div className="form-group">
+              <label>AI Parser Enabled:</label>
+              <input
+                type="checkbox"
+                checked={settings.aiParserSettings.enabled}
+                onChange={(e) =>
+                  handleSettingChange(
+                    "aiParserSettings",
+                    "enabled",
+                    e.target.checked
+                  )
+                }
+              />
+            </div>
+
+            <div className="form-group">
+              <label>OpenRouter API Key:</label>
+              <input
+                type="password"
+                value={settings.aiParserSettings.apiKey}
+                onChange={(e) =>
+                  handleSettingChange(
+                    "aiParserSettings",
+                    "apiKey",
+                    e.target.value
+                  )
+                }
+                placeholder="Enter your OpenRouter API Key"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>AI Model:</label>
+              <select
+                value={settings.aiParserSettings.modelId}
+                onChange={(e) =>
+                  handleSettingChange(
+                    "aiParserSettings",
+                    "modelId",
+                    e.target.value
+                  )
+                }>
+                <option value="google/gemma-3-27b-it:free">Gemma 3 27B</option>
+                <option value="mistralai/mistral-small-3.1-24b-instruct:free">
+                  Mistral Small 3.1
+                </option>
+                <option value="google/gemini-2.0-pro-exp-02-05:free">
+                  Gemini 2.0 Pro
+                </option>
+              </select>
             </div>
           </div>
         </div>

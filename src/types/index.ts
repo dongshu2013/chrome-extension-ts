@@ -46,11 +46,25 @@ export interface Settings {
     systemPrompt: string
   }
 
+  // AI Parser settings for DOM parsing
+  aiParserSettings: {
+    enabled: boolean
+    apiKey: string
+    modelId: string
+  }
+
   // 回复设置
   replySettings: {
     remindViewDetails: boolean
     maxReplyLength: number
     useEmojis: boolean
+  }
+
+  // API settings for profile scraper
+  apiSettings?: {
+    apiUrl: string
+    apiKey: string
+    enabled: boolean
   }
 }
 
@@ -97,10 +111,22 @@ export const DEFAULT_SETTINGS: Settings = {
       "You are a professional Twitter user analysis assistant, good at analyzing the personality traits, interests and communication style of users. Please analyze the user's tweets and provide useful insights."
   },
 
+  aiParserSettings: {
+    enabled: false,
+    apiKey: "",
+    modelId: "google/gemma-3-27b-it:free"
+  },
+
   replySettings: {
     remindViewDetails: false,
     maxReplyLength: 140,
     useEmojis: true
+  },
+
+  apiSettings: {
+    apiUrl: "https://api.example.com/twitter-data",
+    apiKey: "",
+    enabled: false
   }
 }
 

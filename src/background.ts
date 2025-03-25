@@ -2,6 +2,7 @@
 import { Storage } from "@plasmohq/storage"
 
 import { saveTwitterProfileData } from "./services/apiService"
+import type { AppState } from "./types/app"
 
 // Initialize storage
 const storage = new Storage()
@@ -48,6 +49,13 @@ const DEFAULT_SETTINGS = {
     modelId: "gpt-3.5-turbo",
     temperature: 0.7,
     maxTokens: 2000
+  },
+
+  // AI Parser settings for DOM parsing
+  aiParserSettings: {
+    enabled: false,
+    apiKey: "",
+    modelId: "google/gemma-3-27b-it:free"
   },
 
   // API settings
@@ -104,18 +112,22 @@ async function initializeAppState() {
       initialState.settings = storedState.settings || DEFAULT_SETTINGS
       initialState.lastAnalyzedUsers = storedState.lastAnalyzedUsers || []
       initialState.cache = storedState.cache || {}
+
+      // Ensure all settings sections exist by merging with defaults
+      if (!initialState.settings.apiSettings) {
+        initialState.settings.apiSettings = DEFAULT_SETTINGS.apiSettings
+      }
+
+      // Ensure AI parser settings exist
+      if (!initialState.settings.aiParserSettings) {
+        initialState.settings.aiParserSettings =
+          DEFAULT_SETTINGS.aiParserSettings
+      }
+
+      // Save the updated state with all required settings
+      await saveAppState(initialState)
     } else {
       // If there's no stored state, save the default state
-      await saveAppState(initialState)
-    }
-
-    // Initialize API settings if they don't exist
-    if (!initialState.settings.apiSettings) {
-      initialState.settings.apiSettings = {
-        apiUrl: "https://api.example.com/twitter-data",
-        apiKey: "",
-        enabled: false
-      }
       await saveAppState(initialState)
     }
   } catch (error) {

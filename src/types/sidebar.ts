@@ -47,6 +47,13 @@ export interface TwitterSettings {
     temperature: number
     maxTokens: number
   }
+
+  // AI Parser settings for DOM parsing
+  aiParserSettings: {
+    enabled: boolean
+    apiKey: string
+    modelId: string
+  }
 }
 
 /**
@@ -81,6 +88,13 @@ export const DEFAULT_SETTINGS: TwitterSettings = {
     modelId: "gpt-3.5-turbo",
     temperature: 0.7,
     maxTokens: 2000
+  },
+
+  // AI Parser settings for DOM parsing
+  aiParserSettings: {
+    enabled: false,
+    apiKey: "",
+    modelId: "google/gemma-3-27b-it:free"
   }
 }
 

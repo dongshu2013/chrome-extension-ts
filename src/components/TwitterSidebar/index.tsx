@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 
+import { twitterPostDetailScraper } from "../../services/post-scraper"
 import type { SidebarTab, TwitterSidebarProps } from "../../types/sidebar"
 import { DEFAULT_SETTINGS } from "../../types/sidebar"
 import type { TwitterProfileData } from "../../types/twitter"
@@ -38,8 +39,8 @@ const TwitterSidebar: React.FC<TwitterSidebarProps> = ({
   const [activeTab, setActiveTab] = useState<SidebarTab>(
     (activeTabOverride as SidebarTab) || "scraper"
   )
-  const [currentUser, setCurrentUser] = useState<string>(
-    username || getCurrentTwitterUsername()
+  const [currentUsername, setCurrentUsername] = useState<string | null>(
+    username || null
   )
   const [userDisplayName, setUserDisplayName] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +51,9 @@ const TwitterSidebar: React.FC<TwitterSidebarProps> = ({
     null
   )
   const activeTabRef = useRef(activeTab)
+  const isFirstLoad = useRef(true)
+  const isInitialLoad = useRef(true)
+  const [isLoading, setIsLoading] = useState(true)
 
   // 增强版的 Tab 切换处理函数
   const handleTabChange = useCallback(
@@ -119,42 +123,105 @@ const TwitterSidebar: React.FC<TwitterSidebarProps> = ({
     }
   }, [forceRerender])
 
-  // 获取用户显示名称
+  // 当用户名发生变化时，更新当前用户名
   useEffect(() => {
-    if (currentUser) {
-      const displayName = getCurrentUserDisplayName(currentUser)
-      setUserDisplayName(displayName)
+    if (username) {
+      setCurrentUsername(username)
+    } else {
+      const detectedUsername = getCurrentTwitterUsername()
+      setCurrentUsername(detectedUsername)
     }
-  }, [currentUser])
+  }, [username])
 
-  // 加载设置
+  // 当 URL 变化时更新用户名
   useEffect(() => {
-    async function loadSettingsFromStorage() {
-      try {
-        // 尝试从后台脚本获取设置
-        chrome.runtime.sendMessage({ type: "GET_APP_STATE" }, (response) => {
-          if (
-            response &&
-            response.success &&
-            response.state &&
-            response.state.settings
-          ) {
-            setSettings(response.state.settings)
-          } else {
-            console.warn(
-              "Could not get settings from background, using defaults"
-            )
-            setSettings(DEFAULT_SETTINGS)
-          }
-        })
-      } catch (error) {
-        console.error("Failed to load settings:", error)
-        setSettings(DEFAULT_SETTINGS)
+    const handleUrlChange = () => {
+      const newUsername = getCurrentTwitterUsername()
+      const isPostPage = isPostDetailPage()
+
+      if (isPostPage) {
+        // 如果是帖子详情页，切换到帖子详情选项卡
+        setActiveTab("postDetail")
+      } else if (newUsername) {
+        // 如果在用户页面，更新用户名
+        setCurrentUsername(newUsername)
       }
     }
 
-    loadSettingsFromStorage()
+    // 初始检查
+    handleUrlChange()
+
+    // 使用 MutationObserver 监听 URL 变化
+    const observer = new MutationObserver((mutations) => {
+      // 如果 URL 已更改
+      if (location.href !== lastUrl) {
+        lastUrl = location.href
+        handleUrlChange()
+      }
+    })
+
+    let lastUrl = location.href
+    observer.observe(document, { subtree: true, childList: true })
+
+    return () => {
+      observer.disconnect()
+    }
   }, [])
+
+  // 获取用户显示名称
+  useEffect(() => {
+    if (currentUsername && !userDisplayName) {
+      const displayName = getCurrentUserDisplayName()
+      if (displayName) {
+        setUserDisplayName(displayName)
+      }
+    }
+  }, [currentUsername])
+
+  // 当组件挂载时加载设置
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const storage = new Storage()
+        const appState = await storage.get("appState")
+
+        if (appState?.settings) {
+          setSettings(appState.settings)
+        }
+
+        setIsLoading(false)
+        isInitialLoad.current = false // Set initial load to false after loading settings
+      } catch (error) {
+        console.error("Failed to load settings:", error)
+        setIsLoading(false)
+        isInitialLoad.current = false // Set initial load to false after error
+      }
+    }
+
+    loadSettings()
+  }, [])
+
+  // Effect to apply AI parser settings when they change
+  useEffect(() => {
+    // Only apply settings after initial load
+    if (!isInitialLoad.current) {
+      console.log(
+        `AI Parser ${settings?.aiParserSettings?.enabled ? "enabled" : "disabled"} with model: ${settings?.aiParserSettings?.modelId}`
+      )
+
+      // Configure the twitterPostDetailScraper with AI parser settings
+      twitterPostDetailScraper.configureAIFallback(
+        settings?.aiParserSettings?.enabled || false,
+        settings?.aiParserSettings?.apiKey || "",
+        settings?.aiParserSettings?.modelId || "google/gemma-3-27b-it:free"
+      )
+    }
+  }, [
+    settings?.aiParserSettings?.enabled,
+    settings?.aiParserSettings?.apiKey,
+    settings?.aiParserSettings?.modelId,
+    isInitialLoad.current
+  ])
 
   // 保存设置
   const saveSettings = () => {
@@ -223,7 +290,7 @@ const TwitterSidebar: React.FC<TwitterSidebarProps> = ({
         return (
           <ScraperTab
             key={`scraper-tab-${rerenderKey}`}
-            username={currentUser}
+            username={currentUsername}
             onSuccess={handleScraperSuccess}
             onError={handleScraperError}
           />
@@ -238,6 +305,7 @@ const TwitterSidebar: React.FC<TwitterSidebarProps> = ({
           <PostDetailTab
             key={`post-detail-tab-${rerenderKey}`}
             commentsCount={10}
+            fetchAllComments={settings.aiParserSettings?.enabled}
           />
         )
 
@@ -257,7 +325,7 @@ const TwitterSidebar: React.FC<TwitterSidebarProps> = ({
         return (
           <ScraperTab
             key={`scraper-tab-${rerenderKey}`}
-            username={currentUser}
+            username={currentUsername}
           />
         )
     }
@@ -270,7 +338,7 @@ const TwitterSidebar: React.FC<TwitterSidebarProps> = ({
       <SidebarHeader
         activeTab={activeTab}
         setActiveTab={handleTabChange}
-        username={currentUser}
+        username={currentUsername}
         userDisplayName={userDisplayName}
         closeSidebar={closeSidebar}
       />

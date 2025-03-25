@@ -1,4 +1,5 @@
 import type { TwitterPostDetail } from "../types/twitter"
+import { aiParser } from "./ai-parser"
 import { scrapeTwitterPostDetail } from "./twitter-scraper/core/detail-scraper"
 
 /**
@@ -6,6 +7,44 @@ import { scrapeTwitterPostDetail } from "./twitter-scraper/core/detail-scraper"
  * Responsible for extracting detailed information about Twitter posts, including comments
  */
 class TwitterPostDetailScraperService {
+  private useAIFallback: boolean = false
+  private currentAIModel: string = "google/gemma-3-27b-it:free"
+
+  /**
+   * Configure whether to use AI as a fallback when traditional scraping fails
+   * @param useAIFallback Whether to use AI fallback
+   * @param apiKey The OpenRouter API key to use (optional)
+   * @param model The model to use (optional)
+   */
+  configureAIFallback(
+    useAIFallback: boolean,
+    apiKey?: string,
+    model?: string
+  ): void {
+    this.useAIFallback = useAIFallback
+
+    if (apiKey) {
+      aiParser.setApiKey(apiKey)
+    }
+
+    if (model) {
+      this.currentAIModel = model
+      aiParser.setDefaultModel(model)
+    }
+
+    console.log(
+      `AI fallback ${useAIFallback ? "enabled" : "disabled"} with model: ${this.currentAIModel}`
+    )
+  }
+
+  /**
+   * Get the current DOM content as an HTML string
+   * @returns HTML string of the current page
+   */
+  private getDOMContent(): string {
+    return document.documentElement.outerHTML
+  }
+
   /**
    * Scrape a Twitter post detail by its ID
    * @param postId The Twitter post ID to scrape
@@ -43,6 +82,24 @@ class TwitterPostDetailScraperService {
         args: [postId, commentsCount]
       })
 
+      // If we're using AI fallback, also get the page content for potential AI parsing
+      let domContent = ""
+      if (this.useAIFallback) {
+        try {
+          const domResults = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: function () {
+              return document.documentElement.outerHTML
+            }
+          })
+          if (domResults && domResults[0]) {
+            domContent = domResults[0].result as string
+          }
+        } catch (error) {
+          console.warn("Failed to get DOM content for AI fallback:", error)
+        }
+      }
+
       // Close the tab
       await chrome.tabs.remove(tab.id)
 
@@ -53,6 +110,15 @@ class TwitterPostDetailScraperService {
           `Successfully scraped post detail with ${postDetail.comments.length} comments`
         )
         return postDetail
+      }
+
+      // If traditional scraping failed and AI fallback is enabled
+      if (this.useAIFallback && domContent) {
+        console.log("Traditional scraping failed, attempting AI fallback")
+        return await aiParser.parseDomToPostDetail(
+          domContent,
+          this.currentAIModel
+        )
       }
 
       throw new Error("No results returned from scraping script")
@@ -97,6 +163,12 @@ class TwitterPostDetailScraperService {
       const postId = postIdMatch[1]
       console.log("Extracted post ID:", postId)
 
+      // Get the current DOM content for potential AI fallback
+      let domContent = ""
+      if (this.useAIFallback) {
+        domContent = this.getDOMContent()
+      }
+
       // 直接执行脚本函数，而不是尝试使用chrome.scripting.executeScript
       // 因为我们已经在Twitter页面的上下文中了
       try {
@@ -110,10 +182,41 @@ class TwitterPostDetailScraperService {
           return postDetail
         }
 
+        // If traditional scraping failed but we have AI fallback
+        if (this.useAIFallback && domContent) {
+          console.log(
+            "Traditional scraping returned no data, attempting AI fallback"
+          )
+          return await aiParser.parseDomToPostDetail(
+            domContent,
+            this.currentAIModel
+          )
+        }
+
         console.error("No results returned from scraping function")
         throw new Error("No results returned from scraping function")
       } catch (scriptError) {
         console.error("Error in executing scraping function:", scriptError)
+
+        // Try AI fallback if enabled
+        if (this.useAIFallback && domContent) {
+          console.log(
+            "Traditional scraping failed with error, attempting AI fallback",
+            scriptError
+          )
+          try {
+            return await aiParser.parseDomToPostDetail(
+              domContent,
+              this.currentAIModel
+            )
+          } catch (aiError) {
+            console.error("AI fallback also failed:", aiError)
+            throw new Error(
+              `Both traditional scraping and AI fallback failed. Original error: ${scriptError instanceof Error ? scriptError.message : String(scriptError)}`
+            )
+          }
+        }
+
         throw scriptError
       }
     } catch (error) {
