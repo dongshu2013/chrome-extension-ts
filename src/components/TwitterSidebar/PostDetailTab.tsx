@@ -143,15 +143,15 @@ const PostDetailTab: React.FC<PostDetailTabProps> = ({
         <div
           className="error-message"
           style={{
-            color: "#d32f2f",
-            backgroundColor: "#ffebee",
+            color: "#efb248",
+            backgroundColor: "#f7dfb5",
             padding: "8px",
             borderRadius: "4px"
           }}>
-          <h3 style={{ color: "#d32f2f", marginBottom: "6px" }}>错误</h3>
+          <h3 style={{ color: "#efb248", marginBottom: "6px" }}>Warning</h3>
           <p style={{ color: "#333" }}>{error}</p>
           <p style={{ color: "#666", fontSize: "0.9em", marginTop: "6px" }}>
-            调试信息: postId={finalPostId}, isPostPage={String(isPostPage)}
+            Debug info: postId={finalPostId}, isPostPage={String(isPostPage)}
           </p>
           <p style={{ color: "#666", fontSize: "0.9em" }}>
             URL: {window.location.href}
@@ -177,7 +177,7 @@ const PostDetailTab: React.FC<PostDetailTabProps> = ({
     )
   }
 
-  // 如果没有本地数据，则委托给 TwitterPostDetailView 组件获取数据
+  // If there is no local data, delegate to the TwitterPostDetailView component to get data
   return (
     <div
       className="twitter-analysis-tab-content"
