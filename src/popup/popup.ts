@@ -20,6 +20,7 @@ class ProfileBuilder {
   private profileToDelete: Profile | null = null;
   private autoReplyBuzzButton: HTMLButtonElement;
   private goToTwitterButton: HTMLButtonElement;
+  private testTwitterButton: HTMLButtonElement;
 
   private readonly DEFAULT_PROFILE: Profile = {
     id: "default",
@@ -48,6 +49,9 @@ class ProfileBuilder {
     ) as HTMLButtonElement;
     this.goToTwitterButton = document.getElementById(
       "goToTwitter"
+    ) as HTMLButtonElement;
+    this.testTwitterButton = document.getElementById(
+      "testTwitterButton"
     ) as HTMLButtonElement;
     this.profileModal = document.getElementById(
       "profileModal"
@@ -112,6 +116,9 @@ class ProfileBuilder {
     );
     this.goToTwitterButton?.addEventListener("click", () =>
       this.navigateToUrl("https://twitter.com")
+    );
+    this.testTwitterButton?.addEventListener("click", () =>
+      this.startTestTwitter()
     );
 
     // Close modals when clicking outside
@@ -399,6 +406,10 @@ class ProfileBuilder {
 
   private async startAutoReplyBuzz() {
     chrome.runtime.sendMessage({ type: "AUTO_REPLY_BUZZ" });
+  }
+
+  private async startTestTwitter() {
+    chrome.runtime.sendMessage({ type: "TEST_TWITTER" });
   }
 
   /**

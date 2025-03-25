@@ -12,13 +12,20 @@ export function isTwitterProfileUrl(url: string): boolean {
 }
 
 export function isTwitterReplyUrl(url: string): boolean {
+  if (!url) return false;
+  
+  console.log("Checking if URL is a Twitter reply URL:", url);
+  
+  // Match Twitter's reply URL patterns more comprehensively
   return (
-    /^https?:\/\/((?:www\.)?twitter\.com|(?:www\.)?x\.com)\/[^/]+\/intent\/tweet?in_reply_to\/[^/]+$/.test(
-      url
-    ) ||
-    /^https?:\/\/((?:www\.)?twitter\.com|(?:www\.)?x\.com)\/[^/]+\/intent\/post?in_reply_to\/[^/]+$/.test(
-      url
-    )
+    // Match the /intent/tweet pattern
+    /^https?:\/\/((?:www\.)?twitter\.com|(?:www\.)?x\.com)\/[^/]+\/[^/]+\/tweet/.test(url) ||
+    // Match the specific in_reply_to parameter
+    /^https?:\/\/((?:www\.)?twitter\.com|(?:www\.)?x\.com)\/[^/]+\/intent\/tweet\?in_reply_to=/.test(url) ||
+    // Match the specific in_reply_to parameter for x.com
+    /^https?:\/\/((?:www\.)?twitter\.com|(?:www\.)?x\.com)\/intent\/post\?in_reply_to=/.test(url) ||
+    // Match URLs with status and reply in them
+    /^https?:\/\/((?:www\.)?twitter\.com|(?:www\.)?x\.com)\/[^/]+\/status\/[^/]+\/reply/.test(url)
   );
 }
 

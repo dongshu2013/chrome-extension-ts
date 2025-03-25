@@ -7,6 +7,7 @@ export function isTwitterProfileUrl(url: string): boolean {
 }
 
 export function isBuzzWebsiteUrl(url: string): boolean {
+  console.log("check isBuzzWebsiteUrl", url);
   return (
     url.startsWith("http://localhost:3000") ||
     url.startsWith("https://buzz.ai") ||
