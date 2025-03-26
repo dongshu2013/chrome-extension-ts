@@ -21,6 +21,7 @@ class ProfileBuilder {
   private autoReplyBuzzButton: HTMLButtonElement;
   private goToTwitterButton: HTMLButtonElement;
   private testTwitterButton: HTMLButtonElement;
+  private testBuzzInputButton: HTMLButtonElement;
 
   private readonly DEFAULT_PROFILE: Profile = {
     id: "default",
@@ -52,6 +53,9 @@ class ProfileBuilder {
     ) as HTMLButtonElement;
     this.testTwitterButton = document.getElementById(
       "testTwitterButton"
+    ) as HTMLButtonElement;
+    this.testBuzzInputButton = document.getElementById(
+      "testBuzzInputButton"
     ) as HTMLButtonElement;
     this.profileModal = document.getElementById(
       "profileModal"
@@ -119,6 +123,9 @@ class ProfileBuilder {
     );
     this.testTwitterButton?.addEventListener("click", () =>
       this.startTestTwitter()
+    );
+    this.testBuzzInputButton?.addEventListener("click", () =>
+      this.startTestBuzzInput()
     );
 
     // Close modals when clicking outside
@@ -410,6 +417,10 @@ class ProfileBuilder {
 
   private async startTestTwitter() {
     chrome.runtime.sendMessage({ type: "TEST_TWITTER" });
+  }
+
+  private async startTestBuzzInput() {
+    chrome.runtime.sendMessage({ type: "TEST_BUZZ_INPUT" });
   }
 
   /**

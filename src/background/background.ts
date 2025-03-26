@@ -7,6 +7,7 @@ import {
 import { convertTwitterPostToMarkdown } from "../twitter/common";
 import { Settings, DEFAULT_SETTINGS } from "../types";
 import { isBuzzWebsiteUrl } from "../utils/url";
+import { sleep } from "../utils/common";
 
 // Initialize extension settings if not already set
 chrome.runtime.onInstalled.addListener(async () => {
@@ -72,25 +73,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     testTwitter();
     return true;
   }
+
+  if (message.type === "TEST_BUZZ_INPUT") {
+    handleTestBuzzInput();
+    return true;
+  }
 });
 
 // Add tab monitoring
-chrome.tabs.onCreated.addListener((tab) => {
+chrome.tabs.onCreated.addListener(async (tab) => {
   console.log("New tab created:", tab);
-
-  const openerTabId = tab.openerTabId;
-
-  if (openerTabId) {
-    console.log("Opener tab id:", openerTabId);
-    chrome.tabs.get(openerTabId, (openerTab) => {
-      console.log("Opener tab:", openerTab);
-    });
+  if (!tab?.id) {
+    return;
   }
 
-  console.log("Tab url:", tab.url);
-  console.log("is twitter reply url:", isTwitterReplyUrl(tab.url || ""));
+  // const openerTabId = tab.openerTabId;
+  // if (openerTabId) {
+  //   console.log("Opener tab id:", openerTabId);
+  //   chrome.tabs.get(openerTabId, (openerTab) => {
+  //     console.log("Opener tab:", openerTab);
+  //   });
+  // }
 
-  const isTwitterReply = true;
+  await sleep(3000);
+  const tabDetail = await chrome.tabs.get(tab.id);
+
+  console.log("Tab url:", tabDetail.url);
+  console.log("is twitter reply url:", isTwitterReplyUrl(tabDetail.url || ""));
+
+  const isTwitterReply = isTwitterReplyUrl(tabDetail.url || "");
 
   // Check if it's a URL of twitter reply
   if (isTwitterReply) {
@@ -212,16 +223,27 @@ async function handleNewTwitterReplyTab(tabId: number | undefined) {
           const sleep = (ms: number) =>
             new Promise((resolve) => setTimeout(resolve, ms));
 
-          const toolbar = document.querySelector('div[data-testid="toolBar"]');
-          if (!toolbar) {
-            console.log("Toolbar not found");
-            return null;
-          }
+          let retryCount = 0;
+          let replyButton: HTMLButtonElement | null = null;
+          while (retryCount < 10) {
+            retryCount++;
+            await sleep(1000);
+            const toolbar = document.querySelector(
+              'div[data-testid="toolBar"]'
+            );
+            if (!toolbar) {
+              console.log("Toolbar not found");
+              return null;
+            }
 
-          // Now find the reply button within the toolbar
-          const replyButton = toolbar.querySelector(
-            'button[data-testid="tweetButton"]'
-          ) as HTMLButtonElement;
+            // Now find the reply button within the toolbar
+            replyButton = toolbar.querySelector(
+              'button[data-testid="tweetButton"]'
+            ) as HTMLButtonElement;
+            if (replyButton) {
+              break;
+            }
+          }
 
           if (replyButton) {
             console.log("twitter replyButton found:", replyButton);
@@ -229,7 +251,7 @@ async function handleNewTwitterReplyTab(tabId: number | undefined) {
               console.log("twitter replyButton click");
               replyButton.click();
 
-              let retryCount = 0;
+              retryCount = 0;
               let newPostHref = "";
 
               while (retryCount < 10) {
@@ -271,21 +293,17 @@ async function handleNewTwitterReplyTab(tabId: number | undefined) {
         console.error("twitter replyButton click error:", err);
       });
 
-    // Process the result
-    if (result && result[0] && result[0].result) {
-      const newPostHref = result[0].result;
-
-      // Now call handleNewTwitterReplyFinished with the URL
-      if (newPostHref) {
-        const fullNewPostUrl = `https://twitter.com${newPostHref}`;
-        await handleNewTwitterReplyFinished(fullNewPostUrl);
-      } else {
-        await handleNewTwitterReplyFinished();
-      }
-    }
-
     // Close the tab after processing
     await chrome.tabs.remove(tabId);
+
+    let newPostFullUrl = undefined;
+    if (result && result[0] && result[0].result) {
+      const newPostHref = result[0].result;
+      if (newPostHref) {
+        newPostFullUrl = `https://twitter.com${newPostHref}`;
+      }
+    }
+    await handleNewTwitterReplyFinished(newPostFullUrl);
   } catch (err) {
     console.error("Error handling new twitter reply tab:", err);
   }
@@ -305,9 +323,9 @@ async function handleNewTwitterReplyFinished(replyUrl?: string) {
     // Execute in the context of the web page
     await chrome.scripting.executeScript({
       target: { tabId: buzzTab.id },
-      func: () => {
+      func: (url) => {
         try {
-          if (!replyUrl) {
+          if (!url) {
             return;
           }
 
@@ -316,7 +334,7 @@ async function handleNewTwitterReplyFinished(replyUrl?: string) {
             '[id="replyLink"]'
           ) as HTMLInputElement;
           if (replyLinkInput) {
-            replyLinkInput.value = replyUrl;
+            replyLinkInput.value = url;
           }
 
           const replyBuzzButtons = document.querySelectorAll(
@@ -330,6 +348,53 @@ async function handleNewTwitterReplyFinished(replyUrl?: string) {
           }
           return Array.from(replyBuzzButtons).map((el) => el.id);
         } catch (err) {
+          console.error("Error handling new twitter reply finished:", err);
+        } finally {
+        }
+      },
+      args: [replyUrl],
+    });
+  } catch (error: unknown) {
+    console.error("Error starting auto reply buzz:", error);
+  }
+}
+
+async function handleTestBuzzInput() {
+  try {
+    const tabs = await chrome.tabs.query({});
+
+    const buzzTab = tabs.find((t) => t?.url && isBuzzWebsiteUrl(t.url));
+    if (!buzzTab?.id) {
+      console.error("No Buzz tab found");
+      return;
+    }
+
+    // Execute in the context of the web page
+    await chrome.scripting.executeScript({
+      target: { tabId: buzzTab.id },
+      func: () => {
+        try {
+          // Find input of id replyLink
+          const replyLinkInput = document.querySelector(
+            '[id="replyLink"]'
+          ) as HTMLInputElement;
+          console.log("replyLinkInput:", replyLinkInput);
+          if (replyLinkInput) {
+            replyLinkInput.value = "https://www.google.com";
+          }
+
+          const replyBuzzButtons = document.querySelectorAll(
+            '[id^="comfirmReply"]'
+          );
+          const replyBuzzButton = replyBuzzButtons[0] as HTMLButtonElement;
+          if (replyBuzzButton) {
+            replyBuzzButton.click();
+          } else {
+            console.log("No confirm reply button found");
+          }
+          return Array.from(replyBuzzButtons).map((el) => el.id);
+        } catch (err) {
+          console.error("Error handling test buzz input:", err);
         } finally {
         }
       },
