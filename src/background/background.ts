@@ -8,6 +8,7 @@ import { convertTwitterPostToMarkdown } from "../twitter/common";
 import { Settings, DEFAULT_SETTINGS } from "../types";
 import { isBuzzWebsiteUrl } from "../utils/url";
 import { sleep } from "../utils/common";
+import { buzzApiKey, replyApiBuzz, setBuzzApiKey, startApiBuzz } from "./apiBuzz";
 
 // Initialize extension settings if not already set
 chrome.runtime.onInstalled.addListener(async () => {
@@ -76,6 +77,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === "TEST_BUZZ_INPUT") {
     handleTestBuzzInput();
+    return true;
+  }
+
+  if (message.type === "START_API_BUZZ") {
+    setBuzzApiKey(message.buzzApiKey);
+    startApiBuzz();
     return true;
   }
 });
@@ -303,7 +310,9 @@ async function handleNewTwitterReplyTab(tabId: number | undefined) {
         newPostFullUrl = `https://twitter.com${newPostHref}`;
       }
     }
-    await handleNewTwitterReplyFinished(newPostFullUrl);
+    // await handleNewTwitterReplyFinished(newPostFullUrl);
+
+    replyApiBuzz(newPostFullUrl);
   } catch (err) {
     console.error("Error handling new twitter reply tab:", err);
   }
@@ -358,6 +367,7 @@ async function handleNewTwitterReplyFinished(replyUrl?: string) {
     console.error("Error starting auto reply buzz:", error);
   }
 }
+
 
 async function handleTestBuzzInput() {
   try {

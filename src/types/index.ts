@@ -20,8 +20,20 @@ export interface ProfileStore {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  openaiUrl: 'https://openrouter.ai/api/v1',
-  model: 'google/gemini-2.0-flash-001',
+  openaiUrl: "https://openrouter.ai/api/v1",
+  model: "google/gemini-2.0-flash-001",
   enableAutoReply: false,
   enableAutoSubmit: false,
 };
+
+export interface Buzz {
+  id: string;
+  instructions: string;
+  tweetText: string;
+  tweetLink: string;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  isActive: boolean;
+  isSettled: boolean;
+}

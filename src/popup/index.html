@@ -3,10 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>AI Profile Builder</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
-      rel="stylesheet"
-    />
+    <link rel="stylesheet" href="popup.css" />
     <style>
       body {
         width: 480px;
@@ -177,6 +174,21 @@
             class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             Test Buzz Input
+          </button>
+        </div>
+
+        <div class="mt-[10px] flex justify-between items-center gap-5">
+          <input
+            id="buzzApiKeyInput"
+            class="flex-1 px-4 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50"
+            placeholder="Enter Buzz API Key"
+          />
+
+          <button
+            id="startApiBuzz"
+            class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Start Api Buzz
           </button>
         </div>
       </div>

@@ -22,7 +22,8 @@ class ProfileBuilder {
   private goToTwitterButton: HTMLButtonElement;
   private testTwitterButton: HTMLButtonElement;
   private testBuzzInputButton: HTMLButtonElement;
-
+  private startApiBuzzButton: HTMLButtonElement;
+  private buzzApiKeyInput: HTMLInputElement;
   private readonly DEFAULT_PROFILE: Profile = {
     id: "default",
     name: "Default",
@@ -57,6 +58,12 @@ class ProfileBuilder {
     this.testBuzzInputButton = document.getElementById(
       "testBuzzInputButton"
     ) as HTMLButtonElement;
+    this.startApiBuzzButton = document.getElementById(
+      "startApiBuzz"
+    ) as HTMLButtonElement;
+    this.buzzApiKeyInput = document.getElementById(
+      "buzzApiKeyInput"
+    ) as HTMLInputElement;
     this.profileModal = document.getElementById(
       "profileModal"
     ) as HTMLDivElement;
@@ -88,6 +95,7 @@ class ProfileBuilder {
 
     this.initializeEventListeners();
     this.loadProfiles();
+    this.loadLocalStorage();
   }
 
   private initializeEventListeners() {
@@ -127,6 +135,9 @@ class ProfileBuilder {
     this.testBuzzInputButton?.addEventListener("click", () =>
       this.startTestBuzzInput()
     );
+    this.startApiBuzzButton?.addEventListener("click", () =>
+      this.startApiBuzz()
+    );
 
     // Close modals when clicking outside
     this.profileModal.addEventListener("click", (e) => {
@@ -156,6 +167,13 @@ class ProfileBuilder {
         this.showError(message.error);
       }
     });
+  }
+
+  private loadLocalStorage() {
+    const buzzApiKey = localStorage.getItem("buzzApiKey");
+    if (buzzApiKey) {
+      this.buzzApiKeyInput.value = buzzApiKey;
+    }
   }
 
   private showProfileModal() {
@@ -421,6 +439,19 @@ class ProfileBuilder {
 
   private async startTestBuzzInput() {
     chrome.runtime.sendMessage({ type: "TEST_BUZZ_INPUT" });
+  }
+
+  private async startApiBuzz() {
+    const buzzApiKeyInput = document.getElementById(
+      "buzzApiKeyInput"
+    ) as HTMLInputElement;
+    const buzzApiKey = buzzApiKeyInput.value;
+    if (!buzzApiKey) {
+      this.showError("Please enter a Buzz API Key");
+      return;
+    }
+    localStorage.setItem("buzzApiKey", buzzApiKey);
+    chrome.runtime.sendMessage({ type: "START_API_BUZZ", buzzApiKey });
   }
 
   /**
