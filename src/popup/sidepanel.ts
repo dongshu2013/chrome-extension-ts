@@ -219,8 +219,10 @@ class ChatUI {
     if (!messagesContainer || !this.currentChat) return;
 
     messagesContainer.innerHTML = this.currentChat.messages.map(msg => `
-      <div class="mb-4 ${msg.role === 'user' ? 'user-message' : 'ai-message'} rounded-lg p-3">
-        <p>${msg.content}</p>
+      <div class="flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-2">
+        <div class="message-bubble ${msg.role === 'user' ? 'user-message' : 'ai-message'}">
+          ${msg.content}
+        </div>
       </div>
     `).join('');
 
