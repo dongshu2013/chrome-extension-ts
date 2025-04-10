@@ -5,14 +5,14 @@ const packageJson = require('../package.json');
 
 async function createZip() {
   const distPath = path.resolve(__dirname, '../dist');
-  const zipPath = path.resolve(__dirname, `../buzz-reply-helper-v${packageJson.version}.zip`);
+  const zipPath = path.resolve(__dirname, `../ai-character-builder-v${packageJson.version}.zip`);
   
   console.log(`Creating zip file: ${zipPath}`);
   
   try {
     // Make sure the dist directory exists
     if (!fs.existsSync(distPath)) {
-      console.error('Error: dist directory does not exist. Run "npm run build" first.');
+      console.error('Error: dist directory does not exist. Run "pnpm run build" first.');
       process.exit(1);
     }
     
@@ -26,4 +26,4 @@ async function createZip() {
   }
 }
 
-createZip(); 
+createZip();

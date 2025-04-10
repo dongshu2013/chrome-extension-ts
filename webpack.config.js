@@ -8,6 +8,7 @@ module.exports = {
     options: './src/popup/options.ts',
     content: './src/content/content.ts',
     background: './src/background/background.ts',
+    sidepanel: './src/popup/sidepanel.ts'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),

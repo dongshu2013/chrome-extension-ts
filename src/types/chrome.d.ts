@@ -98,4 +98,19 @@ declare namespace chrome {
       injectImmediately?: boolean
     }): Promise<{ frameId: number, result: any }[]>;
   }
-} 
+
+  namespace sidePanel {
+    export interface OpenOptions {
+      windowId?: number;
+    }
+
+    export function open(options: OpenOptions): Promise<void>;
+    export function setOptions(options: {
+      path?: string;
+      enabled?: boolean;
+    }): Promise<void>;
+    export function setPanelBehavior(behavior: {
+      openPanelOnActionClick?: boolean;
+    }): Promise<void>;
+  }
+}
