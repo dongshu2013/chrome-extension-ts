@@ -1,25 +1,29 @@
 interface Chat {
   id: string;
   title: string;
-  messages: Array<{
-    role: 'user' | 'assistant';
-    content: string;
-  }>;
+  messages: Message[];
   model: string;
+}
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 class ChatUI {
   private chats: Chat[] = [];
   private currentChat: Chat | null = null;
   private chatListOverlay: HTMLElement | null = null;
-  private deleteModal: HTMLElement | null = null;
   private editTitleModal: HTMLElement | null = null;
+  private deleteModal: HTMLElement | null = null;
   private chatToDelete: string | null = null;
+  private abortController: AbortController | null = null;
+  private readonly defaultModel = 'gemini-2.5-pro';
 
   constructor() {
     this.initializeElements();
-    this.loadChats();
     this.setupEventListeners();
+    this.loadChats();
   }
 
   private initializeElements() {
@@ -38,7 +42,7 @@ class ChatUI {
     this.chats = result.chats || [];
 
     // Initialize model selection
-    this.initializeModelSelection();
+    // Removed model selection initialization
 
     this.renderChatList();
     
@@ -54,17 +58,6 @@ class ChatUI {
       const chatTitle = document.getElementById('current-chat-title');
       if (chatTitle) chatTitle.textContent = this.currentChat.title;
     }
-  }
-
-  private async initializeModelSelection() {
-    const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
-    
-    // Retrieve saved model from local storage
-    chrome.storage.local.get(['selectedModel'], (result) => {
-      // If no model saved, set default to Gemini 2.5 Pro
-      const defaultModel = result.selectedModel || 'gemini-2.5-pro';
-      modelSelect.value = defaultModel;
-    });
   }
 
   private setupEventListeners() {
@@ -126,40 +119,51 @@ class ChatUI {
       this.chatToDelete = null;
     });
 
+    // Cancel request button
+    const cancelRequestButton = document.getElementById('cancel-request');
+    cancelRequestButton?.addEventListener('click', () => {
+      this.cancelStreamingRequest();
+    });
+
     // Send message on enter key
     const messageInput = document.getElementById('message-input') as HTMLTextAreaElement;
     messageInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        this.sendMessage();
+        if (!this.isStreamingResponse()) {
+          this.sendMessage();
+        }
       }
     });
 
-    // Model selection
-    const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
-    modelSelect?.addEventListener('change', () => {
-      const selectedModel = modelSelect.value;
-      if (this.currentChat) {
-        this.currentChat.model = selectedModel;
-        this.saveChats();
-      }
+    // Model selection event listener removed
+  }
+
+  private isStreamingResponse(): boolean {
+    return this.abortController !== null;
+  }
+
+  private cancelStreamingRequest() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
       
-      // Persist model selection in local storage
-      chrome.storage.local.set({ 
-        selectedModel: selectedModel 
-      });
-    });
+      // Hide cancel button
+      const cancelRequestButton = document.getElementById('cancel-request');
+      cancelRequestButton?.classList.add('hidden');
+      
+      // Re-enable message input
+      const messageInput = document.getElementById('message-input') as HTMLTextAreaElement;
+      messageInput.disabled = false;
+    }
   }
 
   private async createNewChat() {
-    const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
-    const selectedModel = modelSelect.value || 'gemini-2.5-pro';
-
     const newChat: Chat = {
       id: Date.now().toString(),
       title: 'New Chat',
       messages: [],
-      model: selectedModel
+      model: this.defaultModel
     };
 
     // Retrieve existing chats
@@ -282,42 +286,171 @@ class ChatUI {
 
   private async sendMessage() {
     const messageInput = document.getElementById('message-input') as HTMLTextAreaElement;
-    const content = messageInput.value.trim();
+    const message = messageInput.value.trim();
     
-    if (!content || !this.currentChat) return;
+    if (!message) return;
 
-    // Add user message
-    this.currentChat.messages.push({
-      role: 'user',
-      content
-    });
+    // Disable input and show cancel button during streaming
+    messageInput.disabled = true;
+    const cancelRequestButton = document.getElementById('cancel-request');
+    cancelRequestButton?.classList.remove('hidden');
 
-    // Clear input
-    messageInput.value = '';
+    // Create a new AbortController for this request
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
 
-    // Update UI
-    this.renderMessages();
-    this.saveChats();
-
-    // Update title if it's the first message
-    if (this.currentChat.messages.length === 1) {
-      this.currentChat.title = content.slice(0, 30) + (content.length > 30 ? '...' : '');
-      document.getElementById('current-chat-title')!.textContent = this.currentChat.title;
-      this.renderChatList();
-    }
-
-    // TODO: Send to AI service and handle response
-    // For now, just echo back
-    setTimeout(() => {
-      if (this.currentChat) {
-        this.currentChat.messages.push({
-          role: 'assistant',
-          content: `Echo: ${content}`
-        });
-        this.renderMessages();
-        this.saveChats();
+    try {
+      // Add user message to chat
+      if (!this.currentChat) {
+        await this.createNewChat();
       }
-    }, 1000);
+
+      const userMessage: Message = {
+        role: 'user',
+        content: message
+      };
+      this.currentChat!.messages.push(userMessage);
+      this.renderMessages();
+
+      // Clear input
+      messageInput.value = '';
+
+      // Use default model (Gemini 2.5 Pro)
+      const model = this.defaultModel;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: this.currentChat!.messages,
+          stream: true
+        }),
+        signal
+      });
+
+      // Stream the response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantMessage = '';
+      
+      while (true) {
+        const { done, value } = await reader?.read()!;
+        
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === '[DONE]') break;
+            
+            try {
+              const parsedChunk = JSON.parse(jsonStr);
+              const content = parsedChunk.choices[0]?.delta?.content || '';
+              
+              if (content) {
+                assistantMessage += content;
+                this.renderStreamingMessage(assistantMessage);
+              }
+            } catch (parseError) {
+              console.error('Error parsing chunk:', parseError);
+            }
+          }
+        }
+      }
+
+      // Add full assistant message
+      const assistantMessageObj: Message = {
+        role: 'assistant',
+        content: assistantMessage
+      };
+      this.currentChat!.messages.push(assistantMessageObj);
+      
+      // Remove streaming indicator and finalize message
+      this.finalizeStreamingMessage(assistantMessage);
+      
+      this.saveChats();
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was cancelled');
+        // Remove streaming message if cancelled
+        this.removeStreamingMessage();
+      } else {
+        console.error('Error sending message:', error);
+      }
+    } finally {
+      // Reset streaming state
+      this.abortController = null;
+      messageInput.disabled = false;
+      cancelRequestButton?.classList.add('hidden');
+    }
+  }
+
+  private finalizeStreamingMessage(content: string) {
+    const messagesContainer = document.getElementById('messages');
+    const streamingMessage = messagesContainer?.querySelector('.streaming-message');
+    
+    if (streamingMessage) {
+      // Remove streaming indicator
+      const indicator = streamingMessage.querySelector('.streaming-indicator');
+      if (indicator) {
+        indicator.remove();
+      }
+      
+      // Remove streaming class
+      streamingMessage.classList.remove('streaming-message');
+    }
+  }
+
+  private removeStreamingMessage() {
+    const messagesContainer = document.getElementById('messages');
+    const streamingMessage = messagesContainer?.querySelector('.streaming-message');
+    
+    if (streamingMessage) {
+      streamingMessage.remove();
+    }
+  }
+
+  private renderStreamingMessage(content: string) {
+    const messagesContainer = document.getElementById('messages');
+    let streamingMessage = messagesContainer?.querySelector('.streaming-message');
+    
+    if (streamingMessage) {
+      // Update existing streaming message
+      const messageContent = streamingMessage.querySelector('.message-content');
+      if (messageContent) {
+        messageContent.textContent = content;
+      }
+    } else {
+      // Create new streaming message
+      streamingMessage = document.createElement('div');
+      streamingMessage.classList.add('assistant-message', 'streaming-message');
+      
+      // Create message content
+      const messageContent = document.createElement('div');
+      messageContent.classList.add('message-content');
+      messageContent.textContent = content;
+      
+      // Create streaming indicator
+      const indicator = document.createElement('div');
+      indicator.classList.add('streaming-indicator');
+      
+      // Add elements to message
+      streamingMessage.appendChild(messageContent);
+      streamingMessage.appendChild(indicator);
+      
+      // Add to messages container
+      messagesContainer?.appendChild(streamingMessage);
+    }
+    
+    // Scroll to bottom
+    messagesContainer?.scrollTo(0, messagesContainer.scrollHeight);
   }
 
   private async saveChats() {
