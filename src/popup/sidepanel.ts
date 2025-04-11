@@ -11,7 +11,6 @@ class ChatUI {
   private chats: Chat[] = [];
   private currentChat: Chat | null = null;
   private chatListOverlay: HTMLElement | null = null;
-  private mainChat: HTMLElement | null = null;
   private deleteModal: HTMLElement | null = null;
   private editTitleModal: HTMLElement | null = null;
   private chatToDelete: string | null = null;
@@ -24,7 +23,6 @@ class ChatUI {
 
   private initializeElements() {
     this.chatListOverlay = document.getElementById('chat-list-overlay');
-    this.mainChat = document.getElementById('main-chat');
     this.deleteModal = document.getElementById('delete-modal');
     this.editTitleModal = document.getElementById('edit-title-modal');
   }
