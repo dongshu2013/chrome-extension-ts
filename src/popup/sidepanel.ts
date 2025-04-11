@@ -61,9 +61,9 @@ class ChatUI {
     
     // Retrieve saved model from local storage
     chrome.storage.local.get(['selectedModel'], (result) => {
-      if (result.selectedModel) {
-        modelSelect.value = result.selectedModel;
-      }
+      // If no model saved, set default to Gemini 2.5 Pro
+      const defaultModel = result.selectedModel || 'gemini-2.5-pro';
+      modelSelect.value = defaultModel;
     });
   }
 
@@ -153,7 +153,7 @@ class ChatUI {
 
   private async createNewChat() {
     const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
-    const selectedModel = modelSelect.value;
+    const selectedModel = modelSelect.value || 'gemini-2.5-pro';
 
     const newChat: Chat = {
       id: Date.now().toString(),

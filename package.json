@@ -1,7 +1,7 @@
 {
-  "name": "ai-character-builder",
+  "name": "mizu-agent",
   "version": "1.0.0",
-  "description": "Build personalized AI characters by browsing website content",
+  "description": "Mizu Agent - AI Powered Chrome Extension",
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "watch": "webpack --config webpack.config.js --watch",

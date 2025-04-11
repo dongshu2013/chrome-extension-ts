@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "AI Character Builder",
+  "name": "Mizu Agent",
   "version": "1.0.0",
-  "description": "Build personalized AI characters by browsing website content",
+  "description": "AI-powered assistant for enhanced browsing",
   "permissions": [
     "storage",
     "activeTab",
