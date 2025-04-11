@@ -62,7 +62,7 @@ class ChatUI {
       this.chatListOverlay?.classList.add('-translate-x-full');
     });
 
-    // New chat button
+    // New chat button in chat list
     document.getElementById('new-chat')?.addEventListener('click', () => {
       this.createNewChat();
       this.chatListOverlay?.classList.add('-translate-x-full');

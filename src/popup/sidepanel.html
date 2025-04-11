@@ -77,11 +77,6 @@
         </button>
         <h2 id="current-chat-title" class="text-lg font-semibold cursor-pointer hover:text-blue-500">New Chat</h2>
       </div>
-      <button id="new-chat" class="text-gray-600 hover:text-blue-500 p-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-        </svg>
-      </button>
     </div>
 
     <!-- Messages Area -->
@@ -119,6 +114,11 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
+        </button>
+      </div>
+      <div class="p-4 border-b">
+        <button id="new-chat" class="w-full p-2 text-center bg-blue-500 text-white rounded hover:bg-blue-600">
+          + New Chat
         </button>
       </div>
       <div id="chat-list" class="flex-1 overflow-y-auto">
