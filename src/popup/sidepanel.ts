@@ -5,6 +5,7 @@ interface Chat {
     role: 'user' | 'assistant';
     content: string;
   }>;
+  model: string;
 }
 
 class ChatUI {
@@ -28,27 +29,42 @@ class ChatUI {
   }
 
   private async loadChats() {
-    try {
-      const result = await new Promise<{ chats?: Chat[] }>((resolve) => {
-        chrome.storage.local.get(['chats'], (data) => {
-          resolve(data || { chats: [] });
-        });
+    const result = await new Promise<{ chats?: Chat[] }>((resolve) => {
+      chrome.storage.local.get(['chats'], (data) => {
+        resolve(data || { chats: [] });
       });
-      
-      this.chats = result.chats || [];
-      this.renderChatList();
-      
-      // Create a new chat if none exists
-      if (this.chats.length === 0) {
-        this.createNewChat();
-      } else {
-        this.setCurrentChat(this.chats[0]);
-      }
-    } catch (error) {
-      console.error('Failed to load chats:', error);
-      this.chats = [];
+    });
+
+    this.chats = result.chats || [];
+
+    // Initialize model selection
+    this.initializeModelSelection();
+
+    this.renderChatList();
+    
+    // If no chats exist, create a new one
+    if (this.chats.length === 0) {
       this.createNewChat();
+    } else {
+      // Load the first chat
+      this.currentChat = this.chats[0];
+      this.renderMessages();
+      
+      // Update title
+      const chatTitle = document.getElementById('current-chat-title');
+      if (chatTitle) chatTitle.textContent = this.currentChat.title;
     }
+  }
+
+  private async initializeModelSelection() {
+    const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+    
+    // Retrieve saved model from local storage
+    chrome.storage.local.get(['selectedModel'], (result) => {
+      if (result.selectedModel) {
+        modelSelect.value = result.selectedModel;
+      }
+    });
   }
 
   private setupEventListeners() {
@@ -110,12 +126,7 @@ class ChatUI {
       this.chatToDelete = null;
     });
 
-    // Send message
-    document.getElementById('send-message')?.addEventListener('click', () => {
-      this.sendMessage();
-    });
-
-    // Handle enter key in textarea
+    // Send message on enter key
     const messageInput = document.getElementById('message-input') as HTMLTextAreaElement;
     messageInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -123,18 +134,59 @@ class ChatUI {
         this.sendMessage();
       }
     });
+
+    // Model selection
+    const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+    modelSelect?.addEventListener('change', () => {
+      const selectedModel = modelSelect.value;
+      if (this.currentChat) {
+        this.currentChat.model = selectedModel;
+        this.saveChats();
+      }
+      
+      // Persist model selection in local storage
+      chrome.storage.local.set({ 
+        selectedModel: selectedModel 
+      });
+    });
   }
 
-  private createNewChat() {
+  private async createNewChat() {
+    const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+    const selectedModel = modelSelect.value;
+
     const newChat: Chat = {
-      id: crypto.randomUUID(),
+      id: Date.now().toString(),
       title: 'New Chat',
-      messages: []
+      messages: [],
+      model: selectedModel
     };
-    this.chats.unshift(newChat);
-    this.setCurrentChat(newChat);
-    this.saveChats();
+
+    // Retrieve existing chats
+    const result = await new Promise<{ chats?: Chat[] }>((resolve) => {
+      chrome.storage.local.get(['chats'], (data) => {
+        resolve(data || { chats: [] });
+      });
+    });
+
+    const chats = result.chats || [];
+    chats.unshift(newChat);
+
+    // Save updated chats
+    await new Promise<void>((resolve) => {
+      chrome.storage.local.set({ chats }, () => {
+        resolve();
+      });
+    });
+
+    // Update current chat and render
+    this.currentChat = newChat;
     this.renderChatList();
+    this.renderMessages();
+    
+    // Update title
+    const chatTitle = document.getElementById('current-chat-title');
+    if (chatTitle) chatTitle.textContent = newChat.title;
   }
 
   private deleteChat(chatId: string) {
